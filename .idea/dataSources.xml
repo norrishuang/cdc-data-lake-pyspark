@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="AWS Glue(us-east-1)" read-only="true" uuid="af7a2d4f-b8d0-4dca-ac86-953659028d77">
+      <synchronize>true</synchronize>
+      <remarks>Wrapper For AWS Glue from Big Data Tools plugin</remarks>
+      <jdbc-driver>com.dbschema.ZeppelinSparkJdbcDriver</jdbc-driver>
+      <jdbc-url>AWS Glue@glueConnections@2376156365423033421</jdbc-url>
+      <jdbc-additional-properties>
+        <property name="forceUseDriverIcon" value="true" />
+        <property name="connectionId" value="AWS Glue@glueConnections@2376156365423033421" />
+      </jdbc-additional-properties>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </component>
+</project>

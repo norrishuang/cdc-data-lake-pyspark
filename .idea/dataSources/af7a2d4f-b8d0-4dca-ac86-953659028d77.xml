@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataSource name="AWS Glue(us-east-1)">
+  <database-model serializer="dbm" dbms="SPARK" family-id="SPARK" format-version="4.51">
+    <root id="1">
+      <ServerVersion>0.0</ServerVersion>
+    </root>
+    <database id="2" parent="1"/>
+    <schema id="3" parent="2" name="aws:cloudtrail">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="4" parent="2" name="byd_test_lf">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="5" parent="2" name="cid_cur">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="6" parent="2" name="data_quality_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="7" parent="2" name="default">
+      <Current>1</Current>
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="8" parent="2" name="deltalakedb">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="9" parent="2" name="dynamodb_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="10" parent="2" name="emr_icebergdb">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="11" parent="2" name="glue_view_test">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="12" parent="2" name="glue_view_test_link">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="13" parent="2" name="hudi">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="14" parent="2" name="hudi_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="15" parent="2" name="hudi_sample">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="16" parent="2" name="iceberg_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="17" parent="2" name="iceberg_hive">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="18" parent="2" name="icebergdb">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="19" parent="2" name="kafka_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="20" parent="2" name="kinesis_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="21" parent="2" name="mylogs">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="22" parent="2" name="myspectrum_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="23" parent="2" name="norrisdb_mysql">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="24" parent="2" name="optimization_data">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="25" parent="2" name="presto_workshop_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="26" parent="2" name="redshift_db_dev">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="27" parent="2" name="s3_db">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="28" parent="2" name="s3_exp">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="29" parent="2" name="s3_exp_iceberg">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="30" parent="2" name="tpcds">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="31" parent="2" name="tpcds_deltalake">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="32" parent="2" name="tpcds_hudi">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+    <schema id="33" parent="2" name="tpcds_iceberg">
+      <LastIntrospectionLocalTimestamp>2024-03-27.04:28:08</LastIntrospectionLocalTimestamp>
+    </schema>
+  </database-model>
+</dataSource>
