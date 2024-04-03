@@ -157,17 +157,17 @@ def getShowString(df, n=10, truncate=True, vertical=False):
     else:
         return df._jdf.showString(n, int(truncate), vertical)
 
-def load_tables_config(aws_region, config_s3_path):
-    o = urlparse(config_s3_path, allow_fragments=False)
-    client = boto3.client('s3', region_name=aws_region)
-    data = client.get_object(Bucket=o.netloc, Key=o.path.lstrip('/'))
-    file_content = data['Body'].read().decode("utf-8")
-    json_content = json.loads(file_content)
-    return json_content
-
-
-tables_ds = load_tables_config(REGION, TABLECONFFILE)
-
+# def load_tables_config(aws_region, config_s3_path):
+#     o = urlparse(config_s3_path, allow_fragments=False)
+#     client = boto3.client('s3', region_name=aws_region)
+#     data = client.get_object(Bucket=o.netloc, Key=o.path.lstrip('/'))
+#     file_content = data['Body'].read().decode("utf-8")
+#     json_content = json.loads(file_content)
+#     return json_content
+#
+#
+# tables_ds = load_tables_config(REGION, TABLECONFFILE)
+#
 
 #从kafka获取数据
 reader = spark \
@@ -184,12 +184,13 @@ kafka_data = reader.load()
 
 source_data = kafka_data.selectExpr("CAST(value AS STRING)")
 
-process = TransctionLogProcess(spark,
-                         REGION,
-                         TABLECONFFILE,
-                         logger,
-                         JOB_NAME,
-                         DATABASE_NAME)
+process = TransctionLogProcess(spark=spark,
+                         region=REGION,
+                         tableconffile=TABLECONFFILE,
+                         logger=logger,
+                         jobname=JOB_NAME,
+                         databasename=DATABASE_NAME,
+                         isglue = False)
 
 source_data \
     .writeStream \

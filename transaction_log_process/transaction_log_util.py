@@ -33,6 +33,7 @@ class TransctionLogProcess:
 
         self.tables_ds = self._load_tables_config(region, tableconffile)
 
+
         self.config = {
             "database_name": databasename,
         }
@@ -41,6 +42,7 @@ class TransctionLogProcess:
         self.logger.info(self.jobname + " [CUSTOM-LOG]:{0}".format(logs))
 
     def _load_tables_config(self, aws_region, config_s3_path):
+        self._writeJobLogger("table config file path" + config_s3_path)
         o = urlparse(config_s3_path, allow_fragments=False)
         client = boto3.client('s3', region_name=aws_region)
         data = client.get_object(Bucket=o.netloc, Key=o.path.lstrip('/'))
