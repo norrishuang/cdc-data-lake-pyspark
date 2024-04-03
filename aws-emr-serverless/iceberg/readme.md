@@ -94,7 +94,7 @@ python3 setup.py bdist_wheel
 ```shell
 export S3_PATH=<s3-path>
 # python lib
-python3 -m venv transaction_log_venv
+python3 -m venv --copies transaction_log_venv
 
 source transaction_log_venv/bin/activate
 pip3 install --upgrade pip
