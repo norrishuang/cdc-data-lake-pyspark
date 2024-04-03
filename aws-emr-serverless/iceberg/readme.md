@@ -94,19 +94,19 @@ python3 setup.py bdist_wheel
 ```shell
 export S3_PATH=<s3-path>
 # python lib
-python3 -m venv transaction_logs_venv
+python3 -m venv transaction_log_venv
 
-source transaction_logs_venv/bin/activate
+source transaction_log_venv/bin/activate
 pip3 install --upgrade pip
 pip3 install boto3
 
-pip3 install ./dist/transaction_log_process-0.6-py3-none-any.whl --force-reinstall
+pip3 install ./dist/transaction_log_venv-0.6-py3-none-any.whl --force-reinstall
 
 pip3 install venv-pack
-venv-pack -f -o transaction_log_process.tar.gz
+venv-pack -f -o transaction_log_venv.tar.gz
 
 # upload s3
-aws s3 cp transaction_log_process.tar.gz $S3_PATH
+aws s3 cp transaction_log_setup.tar.gz $S3_PATH
 aws s3 cp aws-emr-serverless/iceberg/kafka-iceberg-streaming-emrserverless.py $S3_PATH
 ```
 
@@ -128,7 +128,7 @@ CHECKPOINT_LOCATION='s3://'$S3_BUCKET'/checkpoint/'
 JOBNAME="MSKServerless-TO-Iceberg-20240301"
 
 # 第三步上传的文件
-PYTHON_ENV=$S3_PATH/cdc_venv.tar.gz
+PYTHON_ENV=$S3_PATH/transaction_log_setup.tar.gz
 
 aws emr-serverless start-job-run \
   --application-id $SPARK_APPLICATION_ID \
