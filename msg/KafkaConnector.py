@@ -24,8 +24,7 @@ class KafkaConnector:
             "failOnDataLoss": "false",
             "maxOffsetsPerTrigger": 10000,
             "max.partition.fetch.bytes": 10485760,
-            "startingOffsets": self.starting_offset,
-            "connectionName": self.glue_msk_connect
+            "startingOffsets": self.starting_offset
             # "kafka.security.protocol": "SASL_SSL",
             # "kafka.sasl.mechanism": "AWS_MSK_IAM",
             # "kafka.sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",

@@ -45,6 +45,7 @@ CHECKPOINT_LOCATION = ""
 WAREHOUSE = ""
 TOPICS = ""
 TABLECONFFILE = ""
+STARTING_OFFSETS_OF_KAFKA_TOPIC = ""
 
 ## Init
 if len(sys.argv) > 1:

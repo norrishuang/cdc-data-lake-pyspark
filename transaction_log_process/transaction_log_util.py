@@ -241,7 +241,7 @@ class TransctionLogProcess:
                     self._writeJobLogger("Covert time type-Column:" + cols.name)
 
         self._writeJobLogger("############  TEMP TABLE batch {}  ############### {}\r\n".format(str(batchId),
-                                                                                                      getShowString(dataFrame, truncate=False)))
+                                                                                                getShowString(dataFrame, truncate=False)))
         t = time.time()  # 当前时间
         ts = (int(round(t * 1000000)))  # 微秒级时间戳
         TempTable = "tmp_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
