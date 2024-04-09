@@ -129,22 +129,6 @@ sc = spark.sparkContext
 log4j = sc._jvm.org.apache.log4j
 logger = log4j.LogManager.getLogger(__name__)
 
-# kafka_options = {
-#     "kafka.bootstrap.servers": KAFKA_BOOSTRAPSERVER,
-#     "subscribe": TOPICS,
-#     "kafka.consumer.commit.groupid": "group-" + JOB_NAME,
-#     "inferSchema": "true",
-#     "classification": "json",
-#     "failOnDataLoss": "false",
-#     "maxOffsetsPerTrigger": 10000,
-#     "max.partition.fetch.bytes": 10485760,
-#     "startingOffsets": STARTING_OFFSETS_OF_KAFKA_TOPIC,
-#     # "kafka.security.protocol": "SASL_SSL",
-#     # "kafka.sasl.mechanism": "AWS_MSK_IAM",
-#     # "kafka.sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",
-#     # "kafka.sasl.client.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler"
-# }
-
 kafka_options = KafkaConnector(kafka_boostrapserver=KAFKA_BOOSTRAPSERVER,
                                topics=TOPICS, job_name=JOB_NAME,
                                starting_offset= STARTING_OFFSETS_OF_KAFKA_TOPIC).get_kafka_options()

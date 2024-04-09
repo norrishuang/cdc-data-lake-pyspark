@@ -127,21 +127,6 @@ def getShowString(df, n=10, truncate=True, vertical=False):
         return df._jdf.showString(n, int(truncate), vertical)
 
 
-
-
-# Script generated for node Apache Kafka
-# kafka_options = {
-#     "connectionName": KAFKA_CONNECT,
-#     "topicName": TOPICS,
-#     "inferSchema": "true",
-#     "classification": "json",
-#     "startingOffsets": STARTING_OFFSETS_OF_KAFKA_TOPIC,
-#     "kafka.security.protocol": "SASL_SSL",
-#     "kafka.sasl.mechanism": "AWS_MSK_IAM",
-#     "kafka.sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",
-#     "kafka.sasl.client.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler"
-# }
-
 kafka_options = KafkaConnector(topics=TOPICS, job_name=JOB_NAME,
                                starting_offset=STARTING_OFFSETS_OF_KAFKA_TOPIC,
                                glue_msk_connect=GLUE_CONNECT).get_glue_connect_options()
