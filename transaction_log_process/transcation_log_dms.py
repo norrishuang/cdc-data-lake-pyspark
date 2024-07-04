@@ -42,7 +42,7 @@ class TransctionLogProcessDMSCDC:
             "database_name": databasename,
         }
 
-        WriteIcebergTableClass.__init__(spark=self.spark,
+        WriteIcebergTableClass.__init__(spark=spark,
                                         region=self.region,
                                         tableconffile=self.tableconffile,
                                         logger=self.logger,
