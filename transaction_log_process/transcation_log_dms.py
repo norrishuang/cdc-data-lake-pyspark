@@ -148,7 +148,7 @@ class TransctionLogProcessDMSCDC:
                 # schemaSource = schema_of_json(sourceJson[0])
 
                 # 获取多表
-                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`s")).distinct()
+                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowtables = datatables.collect()
 
@@ -218,7 +218,7 @@ class TransctionLogProcessDMSCDC:
             if dataDelete.count() > 0:
 
                 # 获取多表
-                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`s")).distinct()
+                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowTables = datatables.collect()
 
