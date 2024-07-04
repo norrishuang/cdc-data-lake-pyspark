@@ -132,6 +132,8 @@ class TransctionLogProcessDMSCDC:
                                                                                                      col("origdata.metadata"),
                                                                                                      metadataschema).alias(
                                                                                                      "metadata"))
+
+
             '''
             由于Iceberg没有主键，需要通过SQL来处理upsert的场景，需要识别CDC log中的 I/U/D 分别逻辑处理
             '''
@@ -158,7 +160,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Insert Table [%],Counts[%]".format(tableName, str(dataInsert.count())))
                     dataDF = dataInsert.select(col("data")) \
                         .filter(
-                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
+                        "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -190,7 +192,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Upsert Table [%],Counts[%]".format(tableName, str(dataUpsert.count())))
                     dataDF = dataUpsert.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
+                        "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -228,7 +230,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Delete Table [%],Counts[%]".format(tableName, str(dataDelete.count())))
                     dataDF = dataDelete.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
+                        "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")
                     dataJson = dataDF.select('data').first()
 
                     schemaData = schema_of_json(dataJson[0])
