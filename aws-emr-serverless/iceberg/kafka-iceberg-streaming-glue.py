@@ -7,7 +7,7 @@ import json
 from awsglue.job import Job
 from urllib.parse import urlparse
 import boto3
-from transaction_log_process.transaction_log_util import TransctionLogProcess
+from transaction_log_process.transaction_log_util import TransctionLogProcessDebeziumCDC
 
 from msg.KafkaConnector import KafkaConnector
 
@@ -137,7 +137,7 @@ dataframe_ApacheKafka_source = glueContext.create_data_frame.from_options(
     connection_options=kafka_options
 )
 
-process = TransctionLogProcess(spark,
+process = TransctionLogProcessDebeziumCDC(spark,
                                REGION,
                                TABLECONFFILE,
                                logger,

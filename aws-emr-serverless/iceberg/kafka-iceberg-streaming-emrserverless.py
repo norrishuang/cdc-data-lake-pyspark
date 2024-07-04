@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import boto3
 import json
 
-from transaction_log_process.transaction_log_util import TransctionLogProcess
+from transaction_log_process.transaction_log_util import TransctionLogProcessDebeziumCDC
 from msg.KafkaConnector import KafkaConnector
 
 
@@ -168,7 +168,7 @@ kafka_data = reader.load()
 
 source_data = kafka_data.selectExpr("CAST(value AS STRING)")
 
-process = TransctionLogProcess(spark=spark,
+process = TransctionLogProcessDebeziumCDC(spark=spark,
                          region=REGION,
                          tableconffile=TABLECONFFILE,
                          logger=logger,
