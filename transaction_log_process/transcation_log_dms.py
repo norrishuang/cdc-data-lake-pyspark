@@ -148,7 +148,7 @@ class TransctionLogProcessDMSCDC:
                 # schemaSource = schema_of_json(sourceJson[0])
 
                 # 获取多表
-                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
+                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowtables = datatables.collect()
 
@@ -179,7 +179,7 @@ class TransctionLogProcessDMSCDC:
                 # schemasource = schema_of_json(sourcejson[0])
 
                 # 获取多表
-                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
+                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowTables = datatables.collect()
                 self._writeJobLogger("MERGE INTO Table Names \r\n" + getShowString(datatables, truncate=False))
