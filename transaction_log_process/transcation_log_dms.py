@@ -20,7 +20,6 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 ### 该方法用于解析 DMS 输出的数据格式
 class TransctionLogProcessDMSCDC:
 
-
     def __init__(self,
                  spark,
                  region,
@@ -44,12 +43,12 @@ class TransctionLogProcessDMSCDC:
         }
 
         WriteIcebergTableClass.__init__(spark=self.spark,
-                                                      region=self.region,
-                                                      tableconffile=self.tableconffile,
-                                                      logger=self.logger,
-                                                      jobname=self.jobname,
-                                                      databasename=databasename,
-                                                      isglue = self.isglue)
+                                        region=self.region,
+                                        tableconffile=self.tableconffile,
+                                        logger=self.logger,
+                                        jobname=self.jobname,
+                                        databasename=databasename,
+                                        isglue=self.isglue)
 
     def _writeJobLogger(self, logs):
         WriteIcebergTableClass.WriteJobLogger(self, logs)
@@ -117,13 +116,22 @@ class TransctionLogProcessDMSCDC:
                 StructField("metadata", StringType(), True)
             ])
 
-            dataJsonDF = dataJsonDF.select(
-                from_json(col("json_string").cast("string"), rootschema).alias("origdata")).select(col("origdata.data"),
-                                                                                                   from_json(
-                                                                                                       col("origdata.metadata"),
-                                                                                                       metadataschema).alias(
-                                                                                                       "metadata"))
-
+            if self.isglue:
+                # glue kafka connect
+                dataJsonDF = data_frame.select(
+                    from_json(col("$json$data_infer_schema$_temporary$").cast("string"), rootschema).alias(
+                        "origdata")).select(col("origdata.data"),
+                                            from_json(
+                                                col("origdata.metadata"),
+                                                metadataschema).alias(
+                                                "metadata"))
+            else:
+                dataJsonDF = data_frame.select(
+                    from_json(col("value").cast("string"), rootschema).alias("origdata")).select(col("origdata.data"),
+                                                                                                 from_json(
+                                                                                                     col("origdata.metadata"),
+                                                                                                     metadataschema).alias(
+                                                                                                     "metadata"))
             '''
             由于Iceberg没有主键，需要通过SQL来处理upsert的场景，需要识别CDC log中的 I/U/D 分别逻辑处理
             '''
@@ -198,7 +206,8 @@ class TransctionLogProcessDMSCDC:
                     schemadata = self.spark.table(f"glue_catalog.{database_name}.{tableName}").schema
                     print(schemadata)
                     dataDFOutput = dataDF.select(
-                        from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"), col("ts_ms"))
+                        from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"),
+                                                                                                 col("ts_ms"))
 
                     self._writeJobLogger(
                         "############  MERGE INTO  ############### \r\n" + getShowString(dataDFOutput, truncate=False))
