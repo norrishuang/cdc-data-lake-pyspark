@@ -20,7 +20,6 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 ### 该方法用于解析 DMS 输出的数据格式
 class TransctionLogProcessDMSCDC:
 
-    writeIcebergObj = None
 
     def __init__(self,
                  spark,
@@ -29,7 +28,8 @@ class TransctionLogProcessDMSCDC:
                  logger,
                  jobname,
                  databasename,
-                 isglue=False):
+                 isglue=False,
+                 WriteIcebergTableClass=None):
         self.region = region
         self.spark = spark
         self.tableconffile = tableconffile
@@ -43,7 +43,7 @@ class TransctionLogProcessDMSCDC:
             "database_name": databasename,
         }
 
-        self.writeIcebergObj = WriteIcebergTableClass(spark=self.spark,
+        WriteIcebergTableClass.__init__(spark=self.spark,
                                                       region=self.region,
                                                       tableconffile=self.tableconffile,
                                                       logger=self.logger,
@@ -52,7 +52,7 @@ class TransctionLogProcessDMSCDC:
                                                       isglue = self.isglue)
 
     def _writeJobLogger(self, logs):
-        self.writeIcebergObj.WriteJobLogger(self, logs)
+        WriteIcebergTableClass.WriteJobLogger(self, logs)
 
     def _load_tables_config(self, aws_region, config_s3_path):
         self._writeJobLogger("table config file path" + config_s3_path)
@@ -161,8 +161,7 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"))
 
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
-                    self._InsertDataLake(tableName, dataDFOutput)
-                    self.writeIcebergObj.InsertDataLake(tableName, dataDFOutput)
+                    WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput)
 
             if dataUpsert.count() > 0:
                 #### 分离一个topics多表的问题。
@@ -203,7 +202,7 @@ class TransctionLogProcessDMSCDC:
 
                     self._writeJobLogger(
                         "############  MERGE INTO  ############### \r\n" + getShowString(dataDFOutput, truncate=False))
-                    self.writeIcebergObj.MergeIntoDataLake(tableName, dataDFOutput, batchId)
+                    WriteIcebergTableClass.MergeIntoDataLake(self, tableName, dataDFOutput, batchId)
 
             if dataDelete.count() > 0:
 
@@ -223,4 +222,4 @@ class TransctionLogProcessDMSCDC:
                     schemaData = schema_of_json(dataJson[0])
                     dataDFOutput = dataDF.select(
                         from_json(col("data").cast("string"), schemaData).alias("DFDEL")).select(col("DFDEL.*"))
-                    self.writeIcebergObj.DeleteDataFromDataLake(tableName, dataDFOutput, batchId)
+                    WriteIcebergTableClass.DeleteDataFromDataLake(self, tableName, dataDFOutput, batchId)
