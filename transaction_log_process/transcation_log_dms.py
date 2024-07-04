@@ -173,7 +173,7 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"))
 
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
-                    WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput)
+                    WriteIcebergTableClass.InsertDataLake(self, self.spark, tableName, dataDFOutput)
 
             if dataUpsert.count() > 0:
                 #### 分离一个topics多表的问题。

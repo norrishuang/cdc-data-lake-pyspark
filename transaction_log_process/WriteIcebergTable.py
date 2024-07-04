@@ -7,6 +7,13 @@ from urllib.parse import urlparse
 import boto3
 import json
 
+
+def getShowString(df, n=10, truncate=True, vertical=False):
+    if isinstance(truncate, bool) and truncate:
+        return df._jdf.showString(n, 10, vertical)
+    else:
+        return df._jdf.showString(n, int(truncate), vertical)
+
 class WriteIcebergTableClass:
     def __init__(self,
                  spark,
@@ -45,7 +52,7 @@ class WriteIcebergTableClass:
         return json_content
 
 
-    def InsertDataLake(self, tableName, dataFrame):
+    def InsertDataLake(self, spark, tableName, dataFrame):
 
         database_name = self.config["database_name"]
         # partition as id
@@ -91,7 +98,7 @@ class WriteIcebergTableClass:
               'write.spark.accept-any-schema'='true')"""
 
         self._writeJobLogger( "####### IF table not exists, create it:" + creattbsql)
-        self.spark.sql(creattbsql)
+        spark.sql(creattbsql)
 
         dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
             .option("merge-schema", "true") \
