@@ -148,15 +148,17 @@ class TransctionLogProcessDMSCDC:
                 # schemaSource = schema_of_json(sourceJson[0])
 
                 # 获取多表
-                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
+                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`s")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowtables = datatables.collect()
 
                 for cols in rowtables:
+                    databaseName = cols[0]
                     tableName = cols[1]
                     self._writeJobLogger("Insert Table [%],Counts[%]".format(tableName, str(dataInsert.count())))
                     dataDF = dataInsert.select(col("data")) \
-                        .filter("metadata.table-name = '" + tableName + "'")
+                        .filter(
+                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -177,7 +179,7 @@ class TransctionLogProcessDMSCDC:
                 # schemasource = schema_of_json(sourcejson[0])
 
                 # 获取多表
-                datatables = dataUpsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
+                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowTables = datatables.collect()
                 self._writeJobLogger("MERGE INTO Table Names \r\n" + getShowString(datatables, truncate=False))
@@ -188,7 +190,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Upsert Table [%],Counts[%]".format(tableName, str(dataUpsert.count())))
                     dataDF = dataUpsert.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
+                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -216,16 +218,17 @@ class TransctionLogProcessDMSCDC:
             if dataDelete.count() > 0:
 
                 # 获取多表
-                datatables = dataDelete.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
+                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`s")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowTables = datatables.collect()
 
                 for cols in rowTables:
+                    databaseName = cols[0]
                     tableName = cols[1]
                     self._writeJobLogger("Delete Table [%],Counts[%]".format(tableName, str(dataDelete.count())))
                     dataDF = dataDelete.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
+                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
                     dataJson = dataDF.select('data').first()
 
                     schemaData = schema_of_json(dataJson[0])
