@@ -158,7 +158,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Insert Table [%],Counts[%]".format(tableName, str(dataInsert.count())))
                     dataDF = dataInsert.select(col("data")) \
                         .filter(
-                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
+                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -190,7 +190,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Upsert Table [%],Counts[%]".format(tableName, str(dataUpsert.count())))
                     dataDF = dataUpsert.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
+                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
 
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
@@ -218,7 +218,7 @@ class TransctionLogProcessDMSCDC:
             if dataDelete.count() > 0:
 
                 # 获取多表
-                datatables = dataInsert.select(col("`metadata.schema-name`"), col("`metadata.table-name`")).distinct()
+                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
                 # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
                 rowTables = datatables.collect()
 
@@ -228,7 +228,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger("Delete Table [%],Counts[%]".format(tableName, str(dataDelete.count())))
                     dataDF = dataDelete.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
-                        "`metadata.table-name` = '" + tableName + "' and `metadata.schema-name` = '" + databaseName + "'")
+                        "metadata.table-name = '" + tableName + "' and metadata.schema-name = '" + databaseName + "'")
                     dataJson = dataDF.select('data').first()
 
                     schemaData = schema_of_json(dataJson[0])
