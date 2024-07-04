@@ -20,6 +20,8 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 ### 该方法用于解析 DMS 输出的数据格式
 class TransctionLogProcessDMSCDC:
 
+    writeIcebergObj = None
+
     def __init__(self,
                  spark,
                  region,
@@ -27,8 +29,7 @@ class TransctionLogProcessDMSCDC:
                  logger,
                  jobname,
                  databasename,
-                 isglue=False,
-                 writeIcebergObj=None):
+                 isglue=False):
         self.region = region
         self.spark = spark
         self.tableconffile = tableconffile
