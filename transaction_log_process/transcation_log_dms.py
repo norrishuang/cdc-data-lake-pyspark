@@ -188,7 +188,7 @@ class TransctionLogProcessDMSCDC:
                     self._writeJobLogger(
                         "MERGE INTO Table [" + tableName + "]\r\n" + getShowString(dataDF, truncate=False))
                     ##由于merge into schema顺序的问题，这里schema从表中获取（顺序问题待解决）
-                    database_name = databaseName
+                    database_name = self.config["database_name"]
 
                     refreshtable = True
                     if refreshtable:
