@@ -61,7 +61,7 @@ if len(sys.argv) > 1:
                                 "region=",
                                 "kafkaserver=",
                                 "checkpointpath=",
-                                "sourcetype="
+                                "sourcetype=",
                                 "cdcformat="])
 
 
