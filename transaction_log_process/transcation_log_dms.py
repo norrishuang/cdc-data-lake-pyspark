@@ -27,6 +27,7 @@ class TransctionLogProcessDMSCDC:
                  logger,
                  jobname,
                  databasename,
+                 warehouse,
                  isglue=False,
                  WriteIcebergTableClass=None):
         # global spark
@@ -36,7 +37,7 @@ class TransctionLogProcessDMSCDC:
         self.logger = logger
         self.jobname = jobname
         self.isglue = isglue
-
+        self.warehouse = warehouse
         self.tables_ds = self._load_tables_config(region, tableconffile)
 
         self.config = {
@@ -174,8 +175,8 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"))
 
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
-                    # WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput)
-                    self.InsertDataLake(tableName, dataDFOutput)
+                    WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput, self.warehouse)
+                    # self.InsertDataLake(tableName, dataDFOutput)
 
             if dataUpsert.count() > 0:
                 #### 分离一个topics多表的问题。
@@ -240,54 +241,54 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemaData).alias("DFDEL")).select(col("DFDEL.*"))
                     WriteIcebergTableClass.DeleteDataFromDataLake(self, tableName, dataDFOutput, batchId)
 
-    def InsertDataLake(self, tableName, dataFrame):
-
-        database_name = self.config["database_name"]
-        # partition as id
-        ###如果表不存在，创建一个空表
-        '''
-        如果表不存在，新建。解决在 writeto 的时候，空表没有字段的问题。
-        write.spark.accept-any-schema 用于在写入 DataFrame 时，Spark可以自适应字段。
-        format-version 使用iceberg v2版本
-        '''
-        format_version = "2"
-        write_merge_mode = "copy-on-write"
-        write_update_mode = "copy-on-write"
-        write_delete_mode = "copy-on-write"
-        timestamp_fields = ""
-
-        for item in self.tables_ds:
-            if item['db'] == database_name and item['table'] == tableName:
-                format_version = item['format-version']
-                write_merge_mode = item['write.merge.mode']
-                write_update_mode = item['write.update.mode']
-                write_delete_mode = item['write.delete.mode']
-                if 'timestamp.fields' in item:
-                    timestamp_fields = item['timestamp.fields']
-
-        if timestamp_fields != "":
-            ##Timestamp字段转换
-            for cols in dataFrame.schema:
-                if cols.name in timestamp_fields:
-                    dataFrame = dataFrame.withColumn(cols.name, to_timestamp(col(cols.name)))
-                    self._writeJobLogger("Covert time type-Column:" + cols.name)
-
-        #dyDataFrame = dataFrame.repartition(4, col("id"))
-
-        creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName} 
-              USING iceberg 
-              TBLPROPERTIES ('write.distribution-mode'='hash',
-              'format-version'='{format_version}',
-              'write.merge.mode'='{write_merge_mode}',
-              'write.update.mode'='{write_update_mode}',
-              'write.delete.mode'='{write_delete_mode}',
-              'write.metadata.delete-after-commit.enabled'='true',
-              'write.metadata.previous-versions-max'='10',
-              'write.spark.accept-any-schema'='true')"""
-
-        self._writeJobLogger("####### IF table not exists, create it:" + creattbsql)
-        self.spark.sql(creattbsql)
-
-        dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
-            .option("merge-schema", "true") \
-            .option("check-ordering", "false").append()
+    # def InsertDataLake(self, tableName, dataFrame):
+    #
+    #     database_name = self.config["database_name"]
+    #     # partition as id
+    #     ###如果表不存在，创建一个空表
+    #     '''
+    #     如果表不存在，新建。解决在 writeto 的时候，空表没有字段的问题。
+    #     write.spark.accept-any-schema 用于在写入 DataFrame 时，Spark可以自适应字段。
+    #     format-version 使用iceberg v2版本
+    #     '''
+    #     format_version = "2"
+    #     write_merge_mode = "copy-on-write"
+    #     write_update_mode = "copy-on-write"
+    #     write_delete_mode = "copy-on-write"
+    #     timestamp_fields = ""
+    #
+    #     for item in self.tables_ds:
+    #         if item['db'] == database_name and item['table'] == tableName:
+    #             format_version = item['format-version']
+    #             write_merge_mode = item['write.merge.mode']
+    #             write_update_mode = item['write.update.mode']
+    #             write_delete_mode = item['write.delete.mode']
+    #             if 'timestamp.fields' in item:
+    #                 timestamp_fields = item['timestamp.fields']
+    #
+    #     if timestamp_fields != "":
+    #         ##Timestamp字段转换
+    #         for cols in dataFrame.schema:
+    #             if cols.name in timestamp_fields:
+    #                 dataFrame = dataFrame.withColumn(cols.name, to_timestamp(col(cols.name)))
+    #                 self._writeJobLogger("Covert time type-Column:" + cols.name)
+    #
+    #     #dyDataFrame = dataFrame.repartition(4, col("id"))
+    #
+    #     creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName}
+    #           USING iceberg
+    #           TBLPROPERTIES ('write.distribution-mode'='hash',
+    #           'format-version'='{format_version}',
+    #           'write.merge.mode'='{write_merge_mode}',
+    #           'write.update.mode'='{write_update_mode}',
+    #           'write.delete.mode'='{write_delete_mode}',
+    #           'write.metadata.delete-after-commit.enabled'='true',
+    #           'write.metadata.previous-versions-max'='10',
+    #           'write.spark.accept-any-schema'='true')"""
+    #
+    #     self._writeJobLogger("####### IF table not exists, create it:" + creattbsql)
+    #     self.spark.sql(creattbsql)
+    #
+    #     dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
+    #         .option("merge-schema", "true") \
+    #         .option("check-ordering", "false").append()

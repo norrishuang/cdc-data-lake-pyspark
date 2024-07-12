@@ -52,7 +52,7 @@ class WriteIcebergTableClass:
         return json_content
 
 
-    def InsertDataLake(self, tableName, dataFrame):
+    def InsertDataLake(self, tableName, dataFrame, warehouse):
 
         database_name = self.config["database_name"]
         # partition as id
@@ -88,6 +88,7 @@ class WriteIcebergTableClass:
 
         creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName} 
               USING iceberg 
+              LOCALTION '{warehouse}/{database_name}.db/{tableName}/'
               TBLPROPERTIES ('write.distribution-mode'='hash',
               'format-version'='{format_version}',
               'write.merge.mode'='{write_merge_mode}',

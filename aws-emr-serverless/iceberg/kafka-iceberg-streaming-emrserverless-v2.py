@@ -125,7 +125,7 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.glue_catalog.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
     .config("spark.sql.catalog.glue_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO") \
     .config("spark.sql.ansi.enabled", "false") \
-    .config("spark.sql.catalog.hive_prod.iceberg.handle-timestamp-without-timezone", True) \
+    .config("spark.sql.catalog.glue_catalog.iceberg.handle-timestamp-without-timezone", True) \
     .config("spark.sql.session.timeZone", "UTC+8") \
     .getOrCreate()
 
@@ -134,20 +134,10 @@ log4j = sc._jvm.org.apache.log4j
 logger = log4j.LogManager.getLogger(__name__)
 
 
-### test
-spark.sql("""Create table if not exists glue_catalog.iceberg_db.transactions 
-          (id bigint, name string, amount double, ts timestamp)
-          USING iceberg
-          TBLPROPERTIES ('write.distribution-mode'='hash',
-              'format-version'='2',
-              'write.metadata.delete-after-commit.enabled'='true',
-              'write.metadata.previous-versions-max'='10',
-              'write.spark.accept-any-schema'='true')""")
-
 
 kafka_options = KafkaConnector(kafka_boostrapserver=KAFKA_BOOSTRAPSERVER,
                                topics=TOPICS, job_name=JOB_NAME,
-                               starting_offset= STARTING_OFFSETS_OF_KAFKA_TOPIC).get_kafka_options()
+                               starting_offset=STARTING_OFFSETS_OF_KAFKA_TOPIC).get_kafka_options()
 def writeJobLogger(logs):
     logger.info(JOB_NAME + " [CUSTOM-LOG]:{0}".format(logs))
 
