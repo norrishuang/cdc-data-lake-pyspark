@@ -52,7 +52,7 @@ class WriteIcebergTableClass:
         return json_content
 
 
-    def InsertDataLake(self, spark, tableName, dataFrame):
+    def InsertDataLake(self, tableName, dataFrame):
 
         database_name = self.config["database_name"]
         # partition as id
