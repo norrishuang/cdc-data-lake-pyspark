@@ -25,7 +25,7 @@ class WriteIcebergTableClass:
 
         global spark
         self.logger = logger
-        # self.spark = spark
+        self.spark = spark
         self.region = region
         self.tableconffile = tableconffile
         self.logger = logger
