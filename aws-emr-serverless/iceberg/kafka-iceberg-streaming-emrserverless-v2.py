@@ -175,7 +175,7 @@ source_data = kafka_data.selectExpr("CAST(value AS STRING)")
 process = None
 
 if CDCFORMAT == 'dms':
-    process = TransctionLogProcessDMSCDC(
+    process = TransctionLogProcessDMSCDC(spark=spark,
                                          region=REGION,
                                          tableconffile=TABLECONFFILE,
                                          logger=logger,
