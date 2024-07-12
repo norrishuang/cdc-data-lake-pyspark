@@ -21,7 +21,6 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 class TransctionLogProcessDMSCDC:
 
     def __init__(self,
-                 spark,
                  region,
                  tableconffile,
                  logger,
@@ -29,6 +28,7 @@ class TransctionLogProcessDMSCDC:
                  databasename,
                  isglue=False,
                  WriteIcebergTableClass=None):
+        global spark
         self.region = region
         self.spark = spark
         self.tableconffile = tableconffile
@@ -173,7 +173,7 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"))
 
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
-                    WriteIcebergTableClass.InsertDataLake(self, self.spark, tableName, dataDFOutput)
+                    WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput)
 
             if dataUpsert.count() > 0:
                 #### 分离一个topics多表的问题。

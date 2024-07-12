@@ -16,17 +16,17 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 
 class WriteIcebergTableClass:
     def __init__(self,
-                 spark,
                  region,
                  tableconffile,
                  logger,
                  jobname,
                  databasename,
                  isglue=False):
+
+        global spark
         self.logger = logger
         self.spark = spark
         self.region = region
-        self.spark = spark
         self.tableconffile = tableconffile
         self.logger = logger
         self.jobname = jobname

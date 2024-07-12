@@ -172,33 +172,25 @@ kafka_data = reader.load()
 
 source_data = kafka_data.selectExpr("CAST(value AS STRING)")
 
-process = TransctionLogProcessDebeziumCDC(spark=spark,
-                         region=REGION,
-                         tableconffile=TABLECONFFILE,
-                         logger=logger,
-                         jobname=JOB_NAME,
-                         databasename=DATABASE_NAME,
-                         isglue = False)
-
 process = None
 
 if CDCFORMAT == 'dms':
-    process = TransctionLogProcessDMSCDC(spark=spark,
+    process = TransctionLogProcessDMSCDC(
                                          region=REGION,
                                          tableconffile=TABLECONFFILE,
                                          logger=logger,
                                          jobname=JOB_NAME,
                                          databasename=DATABASE_NAME,
-                                         isglue = False)
+                                         isglue=False)
 else:
     logger.info("Not support CDCFORMAT: " + CDCFORMAT)
-    process = TransctionLogProcessDebeziumCDC(spark=spark,
+    process = TransctionLogProcessDebeziumCDC(
                                               region=REGION,
                                               tableconffile=TABLECONFFILE,
                                               logger=logger,
                                               jobname=JOB_NAME,
                                               databasename=DATABASE_NAME,
-                                              isglue = False)
+                                              isglue=False)
 
 source_data \
     .writeStream \
