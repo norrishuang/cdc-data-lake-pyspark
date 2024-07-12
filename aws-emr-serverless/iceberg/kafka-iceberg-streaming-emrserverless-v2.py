@@ -183,6 +183,7 @@ if CDCFORMAT == 'dms':
                                          logger=logger,
                                          jobname=JOB_NAME,
                                          databasename=DATABASE_NAME,
+                                         warehouse=WAREHOUSE,
                                          isglue=False)
 else:
     logger.info("Not support CDCFORMAT: " + CDCFORMAT)
