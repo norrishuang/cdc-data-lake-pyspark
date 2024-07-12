@@ -25,7 +25,7 @@ class WriteIcebergTableClass:
 
         global spark
         self.logger = logger
-        self.spark = spark
+        # self.spark = spark
         self.region = region
         self.tableconffile = tableconffile
         self.logger = logger
@@ -156,7 +156,7 @@ class WriteIcebergTableClass:
                         WHERE b.rank = 1
             """
             self.logger.info("####### Execute SQL({}):{}".format(TempTable, queryTemp))
-            tmpDF = self.spark.sql(queryTemp)
+            tmpDF = spark.sql(queryTemp)
 
             ### DUBEG 查看更新的数据是否存在重复数据
             DebugTable = "debug_merge_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
@@ -164,9 +164,9 @@ class WriteIcebergTableClass:
             debugQuery = f"""
                 SELECT {primary_key},ts_ms FROM global_temp.{DebugTable} a GROUP BY {primary_key},ts_ms HAVING count(*) > 1
             """
-            debugDF = self.spark.sql(debugQuery)
+            debugDF = spark.sql(debugQuery)
             self._writeJobLogger(f"############ DEBUG MERGE TEMP {DebugTable} ############### \r\n" + getShowString(debugDF, truncate=False))
-            self.spark.catalog.dropGlobalTempView(DebugTable)
+            spark.catalog.dropGlobalTempView(DebugTable)
 
             # 移除字段 ts_ms
             mergeDF = tmpDF.drop("ts_ms")
@@ -205,14 +205,14 @@ class WriteIcebergTableClass:
 
         self.logger.info("####### Execute SQL:" + query)
         try:
-            self.spark.sql(query)
+            spark.sql(query)
         except Exception as err:
             self.logger.error("Error of MERGE INTO")
             self.logger.error(err)
             pass
-        self.spark.catalog.dropGlobalTempView(TempTable)
+        spark.catalog.dropGlobalTempView(TempTable)
         if MergeTempTable != '':
-            self.spark.catalog.dropGlobalTempView(MergeTempTable)
+            spark.catalog.dropGlobalTempView(MergeTempTable)
 
 
     def DeleteDataFromDataLake(self, tableName, dataFrame, batchId):
@@ -231,9 +231,9 @@ class WriteIcebergTableClass:
         query = f"""DELETE FROM glue_catalog.{database_name}.{tableName} AS t1 
              where EXISTS (SELECT {primary_key} FROM global_temp.{TempTable} WHERE t1.{primary_key} = {primary_key})"""
         try:
-            self.spark.sql(query)
+            spark.sql(query)
         except Exception as err:
             self.logger.error("Error of DELETE")
             self.logger.error(err)
             pass
-        self.spark.catalog.dropGlobalTempView(TempTable)
+        spark.catalog.dropGlobalTempView(TempTable)

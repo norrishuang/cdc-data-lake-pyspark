@@ -30,7 +30,7 @@ class TransctionLogProcessDMSCDC:
                  WriteIcebergTableClass=None):
         global spark
         self.region = region
-        self.spark = spark
+        # self.spark = spark
         self.tableconffile = tableconffile
         self.logger = logger
         self.jobname = jobname
@@ -42,7 +42,7 @@ class TransctionLogProcessDMSCDC:
             "database_name": databasename,
         }
 
-        WriteIcebergTableClass.__init__(spark=spark,
+        WriteIcebergTableClass.__init__(
                                         region=self.region,
                                         tableconffile=self.tableconffile,
                                         logger=self.logger,
@@ -204,10 +204,10 @@ class TransctionLogProcessDMSCDC:
 
                     refreshtable = True
                     if refreshtable:
-                        self.spark.sql(f"REFRESH TABLE glue_catalog.{database_name}.{tableName}")
+                        spark.sql(f"REFRESH TABLE glue_catalog.{database_name}.{tableName}")
                         self._writeJobLogger("Refresh table - True")
 
-                    schemadata = self.spark.table(f"glue_catalog.{database_name}.{tableName}").schema
+                    schemadata = spark.table(f"glue_catalog.{database_name}.{tableName}").schema
                     print(schemadata)
                     dataDFOutput = dataDF.select(
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"),
