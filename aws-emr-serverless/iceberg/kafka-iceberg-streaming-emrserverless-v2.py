@@ -139,7 +139,7 @@ spark.sql("""Create table if not exists glue_catalog.iceberg_db.transactions
           (id bigint, name string, amount double, ts timestamp)
           USING iceberg
           TBLPROPERTIES ('write.distribution-mode'='hash',
-              'format-version'='2'
+              'format-version'='2',
               'write.metadata.delete-after-commit.enabled'='true',
               'write.metadata.previous-versions-max'='10',
               'write.spark.accept-any-schema'='true')""")
