@@ -16,6 +16,7 @@ def getShowString(df, n=10, truncate=True, vertical=False):
 
 class WriteIcebergTableClass:
     def __init__(self,
+                 spark,
                  region,
                  tableconffile,
                  logger,
@@ -23,7 +24,6 @@ class WriteIcebergTableClass:
                  databasename,
                  isglue=False):
 
-        global spark
         self.logger = logger
         self.spark = spark
         self.region = region
@@ -99,7 +99,7 @@ class WriteIcebergTableClass:
               'write.spark.accept-any-schema'='true')"""
 
         self._writeJobLogger( "####### IF table not exists, create it:" + creattbsql)
-        spark.sql(creattbsql)
+        self.spark.sql(creattbsql)
 
         dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
             .option("merge-schema", "true") \
