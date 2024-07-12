@@ -175,7 +175,7 @@ class TransctionLogProcessDMSCDC:
 
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
                     # WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput)
-                    self.InsertDataLake(self, tableName, dataDFOutput)
+                    self.InsertDataLake(tableName, dataDFOutput)
 
             if dataUpsert.count() > 0:
                 #### 分离一个topics多表的问题。
