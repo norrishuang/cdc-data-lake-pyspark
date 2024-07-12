@@ -136,7 +136,7 @@ logger = log4j.LogManager.getLogger(__name__)
 
 ### test
 spark.sql("""Create table if not exists glue_catalog.iceberg_db.transactions 
-          (id bigint, name string, amount double, ts timestamp, primary key (id))
+          (id bigint, name string, amount double, ts timestamp)
           USING iceberg
           TBLPROPERTIES ('write.distribution-mode'='hash',
               'format-version'='2'
