@@ -133,6 +133,18 @@ sc = spark.sparkContext
 log4j = sc._jvm.org.apache.log4j
 logger = log4j.LogManager.getLogger(__name__)
 
+
+### test
+spark.sql("""Create table if not exists glue_catalog.iceberg_db.transactions "
+          (id bigint, name string, amount double, ts timestamp, primary key (id))
+          USING iceberg
+          TBLPROPERTIES ('write.distribution-mode'='hash',
+              'format-version'='2'
+              'write.metadata.delete-after-commit.enabled'='true',
+              'write.metadata.previous-versions-max'='10',
+              'write.spark.accept-any-schema'='true')""")
+
+
 kafka_options = KafkaConnector(kafka_boostrapserver=KAFKA_BOOSTRAPSERVER,
                                topics=TOPICS, job_name=JOB_NAME,
                                starting_offset= STARTING_OFFSETS_OF_KAFKA_TOPIC).get_kafka_options()
