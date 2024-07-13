@@ -13,17 +13,18 @@
 
 **调用参数：**
 
-| 参数                            | 说明                                                         |
-| ------------------------------- | ------------------------------------------------------------ |
-| jobname                         | 自定义Job名称，此参数会影响 checkpointpath 参数，作为checkpointpath中的一部分定义。 |
+| 参数                              | 说明                                                                                                                                                                                                                                                                                                    |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| jobname                         | 自定义Job名称，此参数会影响 checkpointpath 参数，作为checkpointpath中的一部分定义。                                                                                                                                                                                                                                            |
 | starting_offsets_of_kafka_topic | 消费Kafka的偏移量设置：latest，earliest<br />latest：当集群中存在消费者之前提交的offset记录时 队列集群会从之前记录的offset点开始发送 「记录的offset点，+无穷」。 而当消费者之前在集群中不存在offset记录点时 会从队列中最新的记录开始消费。<br />earliest：如果一个消费者之前提交过offset。 假设这个消费者中途断过，那当它恢复之后重新连接到队列集群 此时应该是从 它在集群中之前提交的offset点开始继续消费，而不是从头消费。 而一个消费者如果之前没有offset记录并设置earliest ，此时才会从头消费。 |
-| topics                          | 指定消费 Kafka 的 Topic，多个Topic，用逗号（，）分隔符。     |
-| icebergdb                       | 指定Iceberg表对应数据库的名称                                |
-| warehouse                       | 指定Iceberg Warehouse                                        |
-| tablejsonfile                   | 设置Iceberg表的属性配置文件。配置文件说明参考[xxx]           |
-| region                          | 程序运行的Region（us-east-1,us-west-1, etc.）                |
-| kafkaserver                     | 指定Kafka Bootstrap Server                                   |
-| checkpointpath                  | 指定Spark运行的checkpoint路径                                |
+| topics                          | 指定消费 Kafka 的 Topic，多个Topic，用逗号（，）分隔符。                                                                                                                                                                                                                                                                 |
+| icebergdb                       | 指定Iceberg表对应数据库的名称                                                                                                                                                                                                                                                                                    |
+| warehouse                       | 指定Iceberg Warehouse                                                                                                                                                                                                                                                                                   |
+| tablejsonfile                   | 设置Iceberg表的属性配置文件。配置文件说明参考[xxx]                                                                                                                                                                                                                                                                       |
+| region                          | 程序运行的Region（us-east-1,us-west-1, etc.）                                                                                                                                                                                                                                                                |
+| kafkaserver                     | 指定Kafka Bootstrap Server                                                                                                                                                                                                                                                                              |
+| checkpointpath                  | 指定Spark运行的checkpoint路径                                                                                                                                                                                                                                                                                |
+| cdcformat                       | 指定接入数据源的cdc格式，目前支持的是 debezium/dms 两种                                                                                                                                                                                                                                                                  |
 
 
 **table 配置参数：**
@@ -76,7 +77,7 @@
 
 [aws-msk-iam-auth-1.1.6-all.jar](https://s3.console.aws.amazon.com/s3/object/emr-hive-us-east-1-812046859005?region=us-east-1&prefix=pyspark/aws-msk-iam-auth-1.1.6-all.jar)	  
 
-代码 `./Iceberg/kafka-iceberg-streaming-emrserverless.py`
+代码 `./Iceberg/kafka-iceberg-streaming-emrserverless-v2.py`
 
 1. 由于代码有依赖公共方法，因此需要在这个项目的根目录下打包，首先获取代码。
 ```shell
@@ -90,24 +91,24 @@ pip3 install wheel
 python3 setup.py bdist_wheel
 ```
 
-3. 打包 python 环境，并且上传到 S3 指定目录下。
+3. 打包 python 环境，并且上传到 S3 指定目录下。（需要确认一下当前打包环境的python版本，EMR 7.0.0 之后的python版本为 3.9）
 ```shell
 export S3_PATH=<s3-path>
 # python lib
-python3 -m venv --copies transaction_log_venv
+python3 -m venv --copies transaction_log_process
 
-source transaction_log_venv/bin/activate
+source transaction_log_process/bin/activate
 pip3 install --upgrade pip
 pip3 install boto3
 
 pip3 install ./dist/transaction_log_venv-0.6-py3-none-any.whl --force-reinstall
 
 pip3 install venv-pack
-venv-pack -f -o transaction_log_venv.tar.gz
+venv-pack -f -o transaction_log_process.tar.gz
 
 # upload s3
-aws s3 cp transaction_log_setup.tar.gz $S3_PATH
-aws s3 cp aws-emr-serverless/iceberg/kafka-iceberg-streaming-emrserverless.py $S3_PATH
+aws s3 cp transaction_log_process.tar.gz $S3_PATH
+aws s3 cp aws-emr-serverless/iceberg/kafka-iceberg-streaming-emrserverless-v2.py $S3_PATH
 ```
 
 **EMR Serverless 提交**
@@ -128,7 +129,7 @@ CHECKPOINT_LOCATION='s3://'$S3_BUCKET'/checkpoint/'
 JOBNAME="MSKServerless-TO-Iceberg-20240301"
 
 # 第三步上传的文件
-PYTHON_ENV=$S3_PATH/transaction_log_setup.tar.gz
+PYTHON_ENV=$S3_PATH/transaction_log_process.tar.gz
 
 aws emr-serverless start-job-run \
   --application-id $SPARK_APPLICATION_ID \
@@ -137,7 +138,7 @@ aws emr-serverless start-job-run \
   --job-driver '{
       "sparkSubmit": {
           "entryPoint": "s3://'${S3_BUCKET}'/pyspark/kafka-iceberg-streaming-emrserverless.py",
-          "entryPointArguments":["--jobname","'${JOBNAME}'","--starting_offsets_of_kafka_topic","'${STARTING_OFFSETS_OF_KAFKA_TOPIC}'","--topics","'${TOPICS}'","--tablejsonfile","'${TABLECONFFILE}'","--region","'${REGION}'","--icebergdb","'${DATABASE_NAME}'","--warehouse","'${WAREHOUSE}'","--kafkaserver","'${KAFKA_BOOSTRAPSERVER}'","--checkpointpath","'${CHECKPOINT_LOCATION}'"],
+          "entryPointArguments":["--jobname","'${JOBNAME}'","--starting_offsets_of_kafka_topic","'${STARTING_OFFSETS_OF_KAFKA_TOPIC}'","--topics","'${TOPICS}'","--tablejsonfile","'${TABLECONFFILE}'","--region","'${REGION}'","--icebergdb","'${DATABASE_NAME}'","--warehouse","'${WAREHOUSE}'","--cdcformat","'debezium'","--kafkaserver","'${KAFKA_BOOSTRAPSERVER}'","--checkpointpath","'${CHECKPOINT_LOCATION}'"],
           "sparkSubmitParameters": "--jars /usr/share/aws/iceberg/lib/iceberg-spark3-runtime.jar,s3://emr-hive-us-east-1-812046859005/pyspark/*.jar --conf spark.executor.instances=10 --conf spark.driver.cores=2 --conf spark.driver.memory=4G --conf spark.executor.memory=4G --conf spark.executor.cores=2 --conf spark.hadoop.hive.metastore.client.factory.class=com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory --conf spark.archives='$PYTHON_ENV'#environment --conf spark.emr-serverless.driverEnv.PYSPARK_DRIVER_PYTHON=./environment/bin/python --conf spark.emr-serverless.driverEnv.PYSPARK_PYTHON=./environment/bin/python --conf spark.executorEnv.PYSPARK_PYTHON=./environment/bin/python"
         }
      }' \

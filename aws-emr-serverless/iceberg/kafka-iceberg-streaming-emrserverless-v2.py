@@ -6,9 +6,10 @@ from urllib.parse import urlparse
 import boto3
 import json
 
-from transaction_log_process.transaction_log_util import TransctionLogProcessDebeziumCDC
+
 from msg.KafkaConnector import KafkaConnector
 from transaction_log_process.transcation_log_dms import TransctionLogProcessDMSCDC
+from transcation_log_process.transcation_log_debezium import TransctionLogProcessDebeziumCDC
 
 '''
 Kafka（MSK Serverless） -EMR Serverless -> Iceberg -> S3
@@ -26,6 +27,7 @@ Kafka（MSK Serverless） -EMR Serverless -> Iceberg -> S3
     (7). checkpointpath: 记录Spark streaming的Checkpoint的地址
     (8). region: 例如 us-east-1
     (9). kafkaserver: MSK 的 boostrap server
+    (10). cdcformat: cdc 的格式，目前支持的是 debezium, dms
 4. 只有在spark3.3版本中，才能支持iceberg的schame自适应。
 5. MSK Serverless 认证只支持IAM，因此在Kafka连接的时候需要包含IAM认证相关的代码。
 
