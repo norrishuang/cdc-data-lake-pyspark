@@ -1,15 +1,18 @@
-# Python Sample
+# EMR Serverless 数据湖的实现
 
+
+
+1. Iceberg
 ./iceberg
+该目录下的代码，提供通过EMR Serverless 运行 pyspark 完成数据CDC入湖到Iceberg的方法。
 
-该目录下的代码，提供通过EMR Serverless 运行 pyspark 完成数据CDC入湖到Iceberg的方法
-
-
-1. EMR Serverless 数据湖的实现
+update 2024-07-12 
+* 升级到 V2 版本，支持 dms。
+* 提取数据写入的公共类 writeIcebergTable，同时支持 emr serverless 和 glue 的写入。
 
    | File                                          | 简介                                                         |
    |-----------------------------------------------| ------------------------------------------------------------ |
-   | **kafka-iceberg-streaming-emrserverless.py**  | pyspark代码实现消费MSK Serverless的 CDC 数据，写入Iceberg。支持多表，支持Schema变更。支持I/U/D。 |
+   | **kafka-iceberg-streaming-emrserverless-v2.py | pyspark代码实现消费MSK Serverless的 CDC 数据，写入Iceberg。支持多表，支持Schema变更。支持I/U/D。 |
 
 **调用参数：**
 
