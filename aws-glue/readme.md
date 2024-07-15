@@ -1,18 +1,18 @@
-# EMR Serverless 数据湖的实现
+# AWS Glue 实时入湖的实现
 
 
 
 1. Iceberg
 ./iceberg
-该目录下的代码，提供通过EMR Serverless 运行 pyspark 完成数据CDC入湖到Iceberg的方法。
+该目录下的代码，提供通过 AWS Glue 运行 pyspark 完成数据CDC入湖到Iceberg的方法。
 
 update 2024-07-12 
 * 升级到 V2 版本，支持 dms。
 * 提取数据写入的公共类 writeIcebergTable，同时支持 emr serverless 和 glue 的写入。
 
-   | File                                          | 简介                                                         |
-   |-----------------------------------------------| ------------------------------------------------------------ |
-   | **kafka-iceberg-streaming-emrserverless-v2.py | pyspark代码实现消费MSK Serverless的 CDC 数据，写入Iceberg。支持多表，支持Schema变更。支持I/U/D。 |
+   | File                              | 简介                                                         |
+   |-----------------------------------| ------------------------------------------------------------ |
+   | **kafka-iceberg-streaming-glue.py | pyspark代码实现消费MSK Serverless的 CDC 数据，写入Iceberg。支持多表，支持Schema变更。支持I/U/D。 |
 
 **调用参数：**
 
@@ -80,76 +80,63 @@ update 2024-07-12
 
 [aws-msk-iam-auth-2.1.1-all.jar](https://repo1.maven.org/maven2/software/amazon/msk/aws-msk-iam-auth/2.1.1/aws-msk-iam-auth-2.1.1-all.jar)	  
 
-代码 `./Iceberg/kafka-iceberg-streaming-emrserverless-v2.py`
+代码 `./Iceberg/kafka-iceberg-streaming-glue.py`
 
 1. 由于代码有依赖公共方法，因此需要在这个项目的根目录下打包，首先获取代码。
 ```shell
 git clone https://github.com/norrishuang/cdc-data-lake-pyspark.git
+
 cd cdc-data-lake-pyspark
-```
 
-2. 打包公共类
-```shell
-pip3 install wheel
+# 打包公共类
+pip3 install wheel 
 python3 setup.py bdist_wheel
+
+# 上传到S3
+aws s3 cp ./dist/transaction_log_venv-0.6-py3-none-any.whl s3://<s3-bucket>/pyspark/
+
+aws s3 cp ./aws-emr-serverless/iceberg/kafka-iceberg-streaming-glue.py s3://<s3-bucket>/pyspark/
 ```
 
-3. 打包 python 环境，并且上传到 S3 指定目录下。（需要确认一下当前打包环境的python版本，EMR 7.0.0 之后的python版本为 3.9）
+2. 创建一个 Glue Job（注意替换参数，例如 kafka-server，s3-bucket 为当前环境的服务地址）
 ```shell
-export S3_PATH=<s3-path>
-# python lib
-python3 -m venv --copies transaction_log_process
+MAIN_PYTHON_CODE_FILE=s3://<s3-bucket>/kafka-iceberg-streaming-glue.py
+ADDITIONAL_PYTHON_MODULES=s3://<s3-bucket>/transaction_log_venv-0.6-py3-none-any.whl
+KAFKA_SERVER='<kafka-server>'
+TABLECONFFILE='s3://<s3-bucket>/config/<table-conf>.json'
+AWS_REGION="us-east-1"
+ICEBERG_WAREHOUSE=s3://<s3-bucket>/data/iceberg-folder/
+TEMP_DIR=s3://<s3-bucket>/temporary/
 
-source transaction_log_process/bin/activate
-pip3 install --upgrade pip
-pip3 install boto3
-
-pip3 install ./dist/transaction_log_venv-0.6-py3-none-any.whl --force-reinstall
-
-pip3 install venv-pack
-venv-pack -f -o transaction_log_process.tar.gz
-
-# upload s3
-aws s3 cp transaction_log_process.tar.gz $S3_PATH
-aws s3 cp aws-emr-serverless/iceberg/kafka-iceberg-streaming-emrserverless-v2.py $S3_PATH
-```
-
-**EMR Serverless 提交**
-
-```shell
-SPARK_APPLICATION_ID=<applicationid>
-JOB_ROLE_ARN=arn:aws:iam::812046859005:role/<ROLE>
-S3_BUCKET=<s3-buclet-name>
-
-STARTING_OFFSETS_OF_KAFKA_TOPIC='earliest'
-TOPICS='\"<topic-name>\"'
-TABLECONFFILE='s3://'$S3_BUCKET'/pyspark/config/tables.json'
-REGION='us-east-1'
-DATABASE_NAME='emr_icebergdb'
-WAREHOUSE='s3://'$S3_BUCKET'/data/iceberg-folder/'
-KAFKA_BOOSTRAPSERVER='<msk-bootstrap-server>'
-CHECKPOINT_LOCATION='s3://'$S3_BUCKET'/checkpoint/'
-JOBNAME="MSKServerless-TO-Iceberg-20240301"
-
-# 第三步上传的文件
-PYTHON_ENV=$S3_PATH/transaction_log_process.tar.gz
-
-aws emr-serverless start-job-run \
-  --application-id $SPARK_APPLICATION_ID \
-  --execution-role-arn $JOB_ROLE_ARN \
-  --name $JOBNAME \
-  --job-driver '{
-      "sparkSubmit": {
-          "entryPoint": "s3://'${S3_BUCKET}'/pyspark/kafka-iceberg-streaming-emrserverless.py",
-          "entryPointArguments":["--jobname","'${JOBNAME}'","--starting_offsets_of_kafka_topic","'${STARTING_OFFSETS_OF_KAFKA_TOPIC}'","--topics","'${TOPICS}'","--tablejsonfile","'${TABLECONFFILE}'","--region","'${REGION}'","--icebergdb","'${DATABASE_NAME}'","--warehouse","'${WAREHOUSE}'","--cdcformat","'debezium'","--kafkaserver","'${KAFKA_BOOSTRAPSERVER}'","--checkpointpath","'${CHECKPOINT_LOCATION}'"],
-          "sparkSubmitParameters": "--jars /usr/share/aws/iceberg/lib/iceberg-spark3-runtime.jar,s3://emr-hive-us-east-1-812046859005/pyspark/*.jar --conf spark.executor.instances=10 --conf spark.driver.cores=2 --conf spark.driver.memory=4G --conf spark.executor.memory=4G --conf spark.executor.cores=2 --conf spark.hadoop.hive.metastore.client.factory.class=com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory --conf spark.archives='$PYTHON_ENV'#environment --conf spark.emr-serverless.driverEnv.PYSPARK_DRIVER_PYTHON=./environment/bin/python --conf spark.emr-serverless.driverEnv.PYSPARK_PYTHON=./environment/bin/python --conf spark.executorEnv.PYSPARK_PYTHON=./environment/bin/python"
-        }
-     }' \
-    --configuration-overrides '{
-        "monitoringConfiguration": {
-        "s3MonitoringConfiguration": {
-            "logUri": "s3://'${S3_BUCKET}'/sparklogs/"
-        }
-    }
-}'
+aws glue create-job \
+    --name msk-to-iceberg \
+    --role my-glue-role \
+    --command '{ 
+        "Name": "gluestreaming", 
+        "PythonVersion": "3", 
+        "ScriptLocation": "'$MAIN_PYTHON_CODE_FILE'" 
+    }' \
+    --region us-east-1 \
+    --connections '{"Connections":["test"]}' \
+    --output json \
+    --default-arguments '{ 
+        "--job-language": "python",
+        "--additional-python-modules":"'$ADDITIONAL_PYTHON_MODULES'", 
+        "--aws_region": "'$AWS_REGION'", 
+        "--TempDir": "'$TEMP_DIR'",
+        "--conf": "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions", 
+        "--config_s3_path": "'$TABLECONFFILE'", 
+        "--datalake-formats": "iceberg",
+        "--icebergdb": "<iceberg-database-name>",
+        "--glueconnect": "<glue-connect>",
+        "--tableconffile": "'$TABLECONFFILE'",
+        "--region": "'$AWS_REGION'",
+        "--warehouse": "'$ICEBERG_WAREHOUSE'",
+        "--starting_offsets_of_kafka_topic": "earliest",
+        "--user-jars-first": "true",
+        "--topics": "<topic-name>"
+    }' \
+    --glue-version 4.0 \
+    --number-of-workers 3 \
+    --worker-type G.1X
 ```
