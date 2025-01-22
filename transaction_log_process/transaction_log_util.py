@@ -198,8 +198,6 @@ class TransctionLogProcessDebeziumCDC:
                     dataFrame = dataFrame.withColumn(cols.name, to_timestamp(col(cols.name)))
                     self._writeJobLogger("Covert time type-Column:" + cols.name)
 
-        #dyDataFrame = dataFrame.repartition(4, col("id"))
-
         creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName} 
               USING iceberg 
               TBLPROPERTIES ('write.distribution-mode'='hash',
@@ -224,10 +222,21 @@ class TransctionLogProcessDebeziumCDC:
         primary_key = 'ID'
         timestamp_fields = ''
         precombine_key = ''
+        primary_key_str = ''
+
         for item in self.tables_ds:
             if item['db'] == database_name and item['table'] == tableName:
                 if 'primary_key' in item:
                     primary_key = item['primary_key']
+                    # primary_key as split,so need to split
+                    if primary_key.find(",") != -1:
+                        primary_key_arr = primary_key.split(",")
+                        for i in primary_key_arr:
+                            primary_key_str = f't.{i} = u.{i}' + ' and ' + primary_key_str
+                        primary_key_str = primary_key_str[:-4]
+                    else:
+                        primary_key_str = f't.{primary_key} = u.{primary_key}'
+
                 if 'precombine_key' in item:# 控制一批数据中对数据做了多次修改的情况，取最新的一条记录
                     precombine_key = item['precombine_key']
                 if 'timestamp.fields' in item:
@@ -254,20 +263,20 @@ class TransctionLogProcessDebeziumCDC:
         # 修改为全局试图OK，为什么？[待解决]
         if precombine_key == '':
             query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
-                ON t.{primary_key} = u.{primary_key}
+                ON {primary_key_str}
                     WHEN MATCHED THEN UPDATE
                         SET *
                     WHEN NOT MATCHED THEN INSERT * """
         else:
 
             queryTemp = f"""
-                SELECT a.* FROM global_temp.{TempTable} a join 
+                SELECT a.* FROM global_temp.{TempTable} t join 
                 (SELECT {primary_key},ts_ms,
                     row_number() over(PARTITION BY {primary_key} ORDER BY ts_ms DESC) AS rank 
-                    FROM global_temp.{TempTable}) b 
-                        ON a.{primary_key} = b.{primary_key} 
-                        and a.ts_ms = b.ts_ms
-                        WHERE b.rank = 1
+                    FROM global_temp.{TempTable}) u 
+                        ON {primary_key_str} 
+                        and t.ts_ms = u.ts_ms
+                        WHERE u.rank = 1
             """
             self.logger.info("####### Execute SQL({}):{}".format(TempTable, queryTemp))
             tmpDF = self.spark.sql(queryTemp)
@@ -291,7 +300,7 @@ class TransctionLogProcessDebeziumCDC:
             mergeDF.createOrReplaceGlobalTempView(MergeTempTable)
             query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING 
                 (SELECT * FROM global_temp.{MergeTempTable}) u 
-                  ON t.{primary_key} = u.{primary_key}
+                  ON {primary_key_str}
                      WHEN MATCHED THEN UPDATE
                          SET *
                      WHEN NOT MATCHED THEN INSERT * """
@@ -333,17 +342,26 @@ class TransctionLogProcessDebeziumCDC:
 
         database_name = self.config["database_name"]
         primary_key = 'ID'
+        primary_key_str = ''
         for item in self.tables_ds:
             if item['db'] == database_name and item['table'] == tableName:
                 primary_key = item['primary_key']
+                # primary_key as split,so need to split
+                if primary_key.find(",") != -1:
+                    primary_key_arr = primary_key.split(",")
+                    for i in primary_key_arr:
+                        primary_key_str = f't.{i} = u.{i}' + ' and ' + primary_key_str
+                    primary_key_str = primary_key_str[:-4]
+                else:
+                    primary_key_str = f't.{primary_key} = u.{primary_key}'
 
         database_name = self.config["database_name"]
         t = time.time()  # 当前时间
         ts = (int(round(t * 1000000)))  # 微秒级时间戳
         TempTable = "tmp_" + tableName + "_d_" + str(batchId) + "_" + str(ts)
         dataFrame.createOrReplaceGlobalTempView(TempTable)
-        query = f"""DELETE FROM glue_catalog.{database_name}.{tableName} AS t1 
-             where EXISTS (SELECT {primary_key} FROM global_temp.{TempTable} WHERE t1.{primary_key} = {primary_key})"""
+        query = f"""DELETE FROM glue_catalog.{database_name}.{tableName} AS t
+             where EXISTS (SELECT {primary_key} FROM global_temp.{TempTable} u WHERE {primary_key_str})"""
         try:
             self.spark.sql(query)
         except Exception as err:

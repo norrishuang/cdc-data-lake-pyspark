@@ -51,7 +51,7 @@ update 2024-07-12
     "timestamp.fields": ["<timestamp-col1>","timestamp-col2"],
     "precombine_key": "<precombine-key>"
   }
- ]
+]
 ```
 参数说明：
 
@@ -98,11 +98,13 @@ aws s3 cp ./dist/transaction_log_venv-0.6-py3-none-any.whl s3://<s3-bucket>/pysp
 aws s3 cp ./aws-emr-serverless/iceberg/kafka-iceberg-streaming-glue.py s3://<s3-bucket>/pyspark/
 ```
 
-2. 创建一个 Glue Job（注意替换参数，例如 kafka-server，s3-bucket 为当前环境的服务地址）
+2. 创建一个 Glue Job
+> 注意替换参数，例如 s3-bucket 为当前环境的服务地址
+Kafka 的连接需要先在 Glue Connection 中创建，然后在 Glue Job 中引用。
+
 ```shell
 MAIN_PYTHON_CODE_FILE=s3://<s3-bucket>/kafka-iceberg-streaming-glue.py
 ADDITIONAL_PYTHON_MODULES=s3://<s3-bucket>/transaction_log_venv-0.6-py3-none-any.whl
-KAFKA_SERVER='<kafka-server>'
 TABLECONFFILE='s3://<s3-bucket>/config/<table-conf>.json'
 AWS_REGION="us-east-1"
 ICEBERG_WAREHOUSE=s3://<s3-bucket>/data/iceberg-folder/
@@ -117,7 +119,7 @@ aws glue create-job \
         "ScriptLocation": "'$MAIN_PYTHON_CODE_FILE'" 
     }' \
     --region us-east-1 \
-    --connections '{"Connections":["test"]}' \
+    --connections '{"Connections":["<glue coneciton of kafka>"]}' \
     --output json \
     --default-arguments '{ 
         "--job-language": "python",
@@ -128,7 +130,7 @@ aws glue create-job \
         "--config_s3_path": "'$TABLECONFFILE'", 
         "--datalake-formats": "iceberg",
         "--icebergdb": "<iceberg-database-name>",
-        "--glueconnect": "<glue-connect>",
+        "--glueconnect": "<glue coneciton of kafka>",
         "--tableconffile": "'$TABLECONFFILE'",
         "--region": "'$AWS_REGION'",
         "--warehouse": "'$ICEBERG_WAREHOUSE'",
