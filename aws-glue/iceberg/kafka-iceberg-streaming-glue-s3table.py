@@ -168,8 +168,8 @@ else:
 glueContext.forEachBatch(frame=dataframe_ApacheKafka_source,
                          batch_function=process.processBatch,
                          options={
-                             "windowSize": "30 seconds",
-                             "recordPollingLimit": "50000",
+                             "windowSize": "120 seconds",
+                             "recordPollingLimit": "200000",
                              "checkpointLocation": checkpoint_location,
                              "batchMaxRetries": 1
                          })

@@ -53,7 +53,7 @@ class TransctionLogProcessDebeziumCDC:
         return json_content
 
     def processBatch(self, data_frame_batch, batchId):
-        if data_frame_batch.count() > 0:
+        if not data_frame_batch.isEmpty():
 
             data_frame = data_frame_batch.cache()
 
@@ -66,14 +66,13 @@ class TransctionLogProcessDebeziumCDC:
                 StructField("transaction", StringType(), True)
             ])
 
-            self._writeJobLogger("## Source Data from Kafka Batch\r\n + " + getShowString(data_frame, truncate=False))
+            self._writeJobLogger("## Source Data from Kafka Batch ID: " + str(batchId))
 
             if self.isglue:
                 # glue kafka connect
                 dataJsonDF = data_frame.select(from_json(col("$json$data_infer_schema$_temporary$").cast("string"), schema).alias("data")).select(col("data.*"))
             else:
                 dataJsonDF = data_frame.select(from_json(col("value").cast("string"), schema).alias("data")).select(col("data.*"))
-            self._writeJobLogger("## Create DataFrame \r\n" + getShowString(dataJsonDF, truncate=False))
 
             '''
             由于Iceberg没有主键，需要通过SQL来处理upsert的场景，需要识别CDC log中的 I/U/D 分别逻辑处理
@@ -84,7 +83,7 @@ class TransctionLogProcessDebeziumCDC:
 
             dataDelete = dataJsonDF.filter("op in ('d') and before is not null")
 
-            if dataInsert.count() > 0:
+            if not dataInsert.isEmpty():
                 #### 分离一个topics多表的问题。
                 # dataInsert = dataInsertDYF.toDF()
                 sourceJson = dataInsert.select('source').first()
@@ -98,7 +97,7 @@ class TransctionLogProcessDebeziumCDC:
 
                 for cols in rowtables:
                     tableName = cols[1]
-                    self._writeJobLogger("Insert Table [%],Counts[%]".format(tableName, str(dataInsert.count())))
+                    self._writeJobLogger("Insert Table [{}]".format(tableName))
                     dataDF = dataInsert.select(col("after"),
                                                from_json(col("source").cast("string"), schemaSource).alias("SOURCE")) \
                         .filter("SOURCE.table = '" + tableName + "'")
@@ -113,7 +112,7 @@ class TransctionLogProcessDebeziumCDC:
                     # logger.info("############  INSERT INTO  ############### \r\n" + getShowString(dataDFOutput,truncate = False))
                     self._InsertDataLake(tableName, dataDFOutput)
 
-            if dataUpsert.count() > 0:
+            if not dataUpsert.isEmpty():
                 #### 分离一个topics多表的问题。
                 sourcejson = dataUpsert.select('source').first()
                 schemasource = schema_of_json(sourcejson[0])
@@ -121,18 +120,18 @@ class TransctionLogProcessDebeziumCDC:
                 # 获取多表
                 datatables = dataUpsert.select(from_json(col("source").cast("string"), schemasource).alias("SOURCE")) \
                     .select(col("SOURCE.db"), col("SOURCE.table")).distinct()
-                self._writeJobLogger("MERGE INTO Table Names \r\n" + getShowString(datatables, truncate=False))
+                self._writeJobLogger("MERGE INTO - processing upsert tables")
 
                 rowtables = datatables.collect()
 
                 for cols in rowtables:
                     tableName = cols[1]
-                    self._writeJobLogger("Upsert Table [%],Counts[%]".format(tableName, str(dataUpsert.count())))
+                    self._writeJobLogger("Upsert Table [{}]".format(tableName))
                     dataDF = dataUpsert.select(col("after"),
                                                from_json(col("source").cast("string"), schemasource).alias("SOURCE"), col("ts_ms")) \
                         .filter("SOURCE.table = '" + tableName + "'")
 
-                    self._writeJobLogger("MERGE INTO Table [" + tableName + "]\r\n" + getShowString(dataDF, truncate=False))
+                    self._writeJobLogger("MERGE INTO Table [" + tableName + "]")
                     ##由于merge into schema顺序的问题，这里schema从表中获取（顺序问题待解决）
                     database_name = self.config["database_name"]
 
@@ -145,10 +144,10 @@ class TransctionLogProcessDebeziumCDC:
                     print(schemadata)
                     dataDFOutput = dataDF.select(from_json(col("after").cast("string"), schemadata).alias("DFADD"), col("ts_ms")).select(col("DFADD.*"), col("ts_ms"))
 
-                    self._writeJobLogger("############  MERGE INTO  ############### \r\n" + getShowString(dataDFOutput, truncate=False))
+                    self._writeJobLogger("############  MERGE INTO  ###############")
                     self._MergeIntoDataLake(tableName, dataDFOutput, batchId)
 
-            if dataDelete.count() > 0:
+            if not dataDelete.isEmpty():
                 sourceJson = dataDelete.select('source').first()
 
                 schemaSource = schema_of_json(sourceJson[0])
@@ -158,7 +157,7 @@ class TransctionLogProcessDebeziumCDC:
                 rowTables = dataTables.collect()
                 for cols in rowTables:
                     tableName = cols[1]
-                    self._writeJobLogger("Delete Table [%],Counts[%]".format(tableName, str(dataDelete.count())))
+                    self._writeJobLogger("Delete Table [{}]".format(tableName))
                     dataDF = dataDelete.select(col("before"),
                                                from_json(col("source").cast("string"), schemaSource).alias("SOURCE")) \
                         .filter("SOURCE.table = '" + tableName + "'")

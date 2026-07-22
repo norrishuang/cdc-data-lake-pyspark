@@ -68,7 +68,7 @@ class TransctionLogProcessDMSCDC:
         return json_content
 
     def processBatch(self, data_frame_batch, batchId):
-        if data_frame_batch.count() > 0:
+        if not data_frame_batch.isEmpty():
 
             data_frame = data_frame_batch.cache()
 
@@ -77,7 +77,7 @@ class TransctionLogProcessDMSCDC:
                 StructField("metadata", StringType(), True)
             ])
 
-            self._writeJobLogger("## Source Data from Kafka Batch\r\n + " + getShowString(data_frame, truncate=False))
+            self._writeJobLogger("## Source Data from Kafka Batch ID: " + str(batchId))
 
             if self.isglue:
                 # glue kafka connect
@@ -148,7 +148,7 @@ class TransctionLogProcessDMSCDC:
 
             dataDelete = dataJsonDF.filter("metadata.operation in ('delete')")
 
-            if dataInsert.count() > 0:
+            if not dataInsert.isEmpty():
                 #### 分离一个topics多表的问题。
                 # dataInsert = dataInsertDYF.toDF()
                 # sourceJson = dataInsert.select('data').first()
@@ -162,7 +162,7 @@ class TransctionLogProcessDMSCDC:
                 for cols in rowtables:
                     databaseName = cols[0]
                     tableName = cols[1]
-                    self._writeJobLogger("Insert Table [%],Counts[%]".format(tableName, str(dataInsert.count())))
+                    self._writeJobLogger("Insert Table [{}]".format(tableName))
                     dataDF = dataInsert.select(col("data")) \
                         .filter(
                         "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")
@@ -181,21 +181,20 @@ class TransctionLogProcessDMSCDC:
                     WriteIcebergTableClass.InsertDataLake(self, tableName, dataDFOutput, self.warehouse)
                     # self.InsertDataLake(tableName, dataDFOutput)
 
-            if dataUpsert.count() > 0:
+            if not dataUpsert.isEmpty():
                 #### 分离一个topics多表的问题。
                 # sourcejson = dataUpsert.select('source').first()
                 # schemasource = schema_of_json(sourcejson[0])
 
                 # 获取多表
-                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
-                # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
+                datatables = dataUpsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
                 rowTables = datatables.collect()
                 self._writeJobLogger("MERGE INTO Table Names \r\n" + getShowString(datatables, truncate=False))
 
                 for cols in rowTables:
                     databaseName = cols[0]
                     tableName = cols[1]
-                    self._writeJobLogger("Upsert Table [%],Counts[%]".format(tableName, str(dataUpsert.count())))
+                    self._writeJobLogger("Upsert Table [{}]".format(tableName))
                     dataDF = dataUpsert.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
                         "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")
@@ -203,8 +202,7 @@ class TransctionLogProcessDMSCDC:
                     datajson = dataDF.select('data').first()
                     schemadata = schema_of_json(datajson[0])
 
-                    self._writeJobLogger(
-                        "MERGE INTO Table [" + tableName + "]\r\n" + getShowString(dataDF, truncate=False))
+                    self._writeJobLogger("MERGE INTO Table [" + tableName + "]")
                     ##由于merge into schema顺序的问题，这里schema从表中获取（顺序问题待解决）
                     database_name = self.config["database_name"]
 
@@ -219,21 +217,19 @@ class TransctionLogProcessDMSCDC:
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"),
                                                                                                  col("ts_ms"))
 
-                    self._writeJobLogger(
-                        "############  MERGE INTO  ############### \r\n" + getShowString(dataDFOutput, truncate=False))
+                    self._writeJobLogger("############  MERGE INTO  ###############")
                     WriteIcebergTableClass.MergeIntoDataLake(self, tableName, dataDFOutput, batchId)
 
-            if dataDelete.count() > 0:
+            if not dataDelete.isEmpty():
 
                 # 获取多表
-                datatables = dataInsert.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
-                # logger.info("############  MutiTables  ############### \r\n" + getShowString(dataTables,truncate = False))
+                datatables = dataDelete.select(col("metadata.schema-name"), col("metadata.table-name")).distinct()
                 rowTables = datatables.collect()
 
                 for cols in rowTables:
                     databaseName = cols[0]
                     tableName = cols[1]
-                    self._writeJobLogger("Delete Table [%],Counts[%]".format(tableName, str(dataDelete.count())))
+                    self._writeJobLogger("Delete Table [{}]".format(tableName))
                     dataDF = dataDelete.select(col("data"), to_timestamp(col("metadata.timestamp")).alias("ts_ms")) \
                         .filter(
                         "metadata.`table-name` = '" + tableName + "' and metadata.`schema-name` = '" + databaseName + "'")

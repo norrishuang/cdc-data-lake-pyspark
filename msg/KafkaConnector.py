@@ -22,7 +22,7 @@ class KafkaConnector:
             "inferSchema": "true",
             "classification": "json",
             "failOnDataLoss": "false",
-            "maxOffsetsPerTrigger": 10000,
+            "maxOffsetsPerTrigger": 200000,
             "max.partition.fetch.bytes": 10485760,
             "startingOffsets": self.starting_offset
             # "kafka.security.protocol": "SASL_SSL",
@@ -39,7 +39,7 @@ class KafkaConnector:
             "inferSchema": "true",
             "classification": "json",
             "failOnDataLoss": "false",
-            "maxOffsetsPerTrigger": 10000,
+            "maxOffsetsPerTrigger": 200000,
             "max.partition.fetch.bytes": 10485760,
             "startingOffsets": self.starting_offset
             # "kafka.security.protocol": "SASL_SSL",
