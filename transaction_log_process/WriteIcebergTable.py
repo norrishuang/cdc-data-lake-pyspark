@@ -22,7 +22,8 @@ class WriteIcebergTableClass:
                  logger,
                  jobname,
                  databasename,
-                 isglue=False):
+                 isglue=False,
+                 catalog_name='glue_catalog'):
 
         self.logger = logger
         self.spark = spark
@@ -31,6 +32,7 @@ class WriteIcebergTableClass:
         self.logger = logger
         self.jobname = jobname
         self.isglue = isglue
+        self.catalog_name = catalog_name
 
         self.tables_ds = self.Load_tables_config(region, tableconffile)
 
@@ -86,8 +88,8 @@ class WriteIcebergTableClass:
 
         #dyDataFrame = dataFrame.repartition(4, col("id"))
 
-        creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName} 
-              USING iceberg 
+        creattbsql = f"""CREATE TABLE IF NOT EXISTS {self.catalog_name}.{database_name}.{tableName}
+              USING iceberg
               LOCATION '{warehouse}/{database_name}.db/{tableName}/'
               TBLPROPERTIES ('write.distribution-mode'='hash',
               'format-version'='{format_version}',
@@ -101,7 +103,7 @@ class WriteIcebergTableClass:
         self._writeJobLogger( "####### IF table not exists, create it:" + creattbsql)
         self.spark.sql(creattbsql)
 
-        dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
+        dataFrame.writeTo(f"{self.catalog_name}.{database_name}.{tableName}") \
             .option("merge-schema", "true") \
             .option("check-ordering", "false").append()
 
@@ -140,7 +142,7 @@ class WriteIcebergTableClass:
         ##dataFrame.sparkSession.sql(f"REFRESH TABLE {TempTable}")
         # 修改为全局试图OK，为什么？[待解决]
         if precombine_key == '':
-            query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
+            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
                 ON t.{primary_key} = u.{primary_key}
                     WHEN MATCHED THEN UPDATE
                         SET *
@@ -176,8 +178,8 @@ class WriteIcebergTableClass:
             self._writeJobLogger(f"############ MERGE TEMP TABLE {MergeTempTable} ############### \r\n" + getShowString(mergeDF, truncate=False))
 
             mergeDF.createOrReplaceGlobalTempView(MergeTempTable)
-            query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING 
-                (SELECT * FROM global_temp.{MergeTempTable}) u 
+            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING
+                (SELECT * FROM global_temp.{MergeTempTable}) u
                   ON t.{primary_key} = u.{primary_key}
                      WHEN MATCHED THEN UPDATE
                          SET *
@@ -229,7 +231,7 @@ class WriteIcebergTableClass:
         ts = (int(round(t * 1000000)))  # 微秒级时间戳
         TempTable = "tmp_" + tableName + "_d_" + str(batchId) + "_" + str(ts)
         dataFrame.createOrReplaceGlobalTempView(TempTable)
-        query = f"""DELETE FROM glue_catalog.{database_name}.{tableName} AS t1 
+        query = f"""DELETE FROM {self.catalog_name}.{database_name}.{tableName} AS t1
              where EXISTS (SELECT {primary_key} FROM global_temp.{TempTable} WHERE t1.{primary_key} = {primary_key})"""
         try:
             spark.sql(query)

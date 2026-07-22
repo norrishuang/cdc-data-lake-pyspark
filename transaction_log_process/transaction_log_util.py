@@ -23,13 +23,15 @@ class TransctionLogProcessDebeziumCDC:
                  logger,
                  jobname,
                  databasename,
-                 isglue=False):
+                 isglue=False,
+                 catalog_name='glue_catalog'):
         self.region = region
         self.spark = spark
         self.tableconffile = tableconffile
         self.logger = logger
         self.jobname = jobname
         self.isglue = isglue
+        self.catalog_name = catalog_name
 
         self.tables_ds = self._load_tables_config(region, tableconffile)
 
@@ -136,10 +138,10 @@ class TransctionLogProcessDebeziumCDC:
 
                     refreshtable = True
                     if refreshtable:
-                        self.spark.sql(f"REFRESH TABLE glue_catalog.{database_name}.{tableName}")
+                        self.spark.sql(f"REFRESH TABLE {self.catalog_name}.{database_name}.{tableName}")
                         self._writeJobLogger("Refresh table - True")
 
-                    schemadata = self.spark.table(f"glue_catalog.{database_name}.{tableName}").schema
+                    schemadata = self.spark.table(f"{self.catalog_name}.{database_name}.{tableName}").schema
                     print(schemadata)
                     dataDFOutput = dataDF.select(from_json(col("after").cast("string"), schemadata).alias("DFADD"), col("ts_ms")).select(col("DFADD.*"), col("ts_ms"))
 
@@ -198,8 +200,8 @@ class TransctionLogProcessDebeziumCDC:
                     dataFrame = dataFrame.withColumn(cols.name, to_timestamp(col(cols.name)))
                     self._writeJobLogger("Covert time type-Column:" + cols.name)
 
-        creattbsql = f"""CREATE TABLE IF NOT EXISTS glue_catalog.{database_name}.{tableName} 
-              USING iceberg 
+        creattbsql = f"""CREATE TABLE IF NOT EXISTS {self.catalog_name}.{database_name}.{tableName}
+              USING iceberg
               TBLPROPERTIES ('write.distribution-mode'='hash',
               'format-version'='{format_version}',
               'write.merge.mode'='{write_merge_mode}',
@@ -212,7 +214,7 @@ class TransctionLogProcessDebeziumCDC:
         self._writeJobLogger( "####### IF table not exists, create it:" + creattbsql)
         self.spark.sql(creattbsql)
 
-        dataFrame.writeTo(f"glue_catalog.{database_name}.{tableName}") \
+        dataFrame.writeTo(f"{self.catalog_name}.{database_name}.{tableName}") \
             .option("merge-schema", "true") \
             .option("check-ordering", "false").append()
 
@@ -262,7 +264,7 @@ class TransctionLogProcessDebeziumCDC:
         ##dataFrame.sparkSession.sql(f"REFRESH TABLE {TempTable}")
         # 修改为全局试图OK，为什么？[待解决]
         if precombine_key == '':
-            query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
+            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
                 ON {primary_key_str}
                     WHEN MATCHED THEN UPDATE
                         SET *
@@ -298,8 +300,8 @@ class TransctionLogProcessDebeziumCDC:
             self._writeJobLogger(f"############ MERGE TEMP TABLE {MergeTempTable} ############### \r\n" + getShowString(mergeDF, truncate=False))
 
             mergeDF.createOrReplaceGlobalTempView(MergeTempTable)
-            query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING 
-                (SELECT * FROM global_temp.{MergeTempTable}) u 
+            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING
+                (SELECT * FROM global_temp.{MergeTempTable}) u
                   ON {primary_key_str}
                      WHEN MATCHED THEN UPDATE
                          SET *
@@ -360,7 +362,7 @@ class TransctionLogProcessDebeziumCDC:
         ts = (int(round(t * 1000000)))  # 微秒级时间戳
         TempTable = "tmp_" + tableName + "_d_" + str(batchId) + "_" + str(ts)
         dataFrame.createOrReplaceGlobalTempView(TempTable)
-        query = f"""DELETE FROM glue_catalog.{database_name}.{tableName} AS t
+        query = f"""DELETE FROM {self.catalog_name}.{database_name}.{tableName} AS t
              where EXISTS (SELECT {primary_key} FROM global_temp.{TempTable} u WHERE {primary_key_str})"""
         try:
             self.spark.sql(query)

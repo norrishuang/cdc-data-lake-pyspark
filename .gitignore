@@ -1,1 +1,10 @@
 /transaction_logs_venv/
+.vscode/
+
+# deploy artifacts
+deploy/config.env
+.venv-package/
+build/
+dist/
+*.egg-info/
+transaction_log_process.tar.gz

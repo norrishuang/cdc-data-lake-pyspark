@@ -13,25 +13,27 @@ from transaction_log_process.transcation_log_dms import TransctionLogProcessDMSC
 from msg.KafkaConnector import KafkaConnector
 
 '''
-Glue -> Kafka -> Iceberg -> S3
-通过 Glue 消费 MSK/MSK Serverless 的数据，写S3（Iceberg）。多表，支持I U D
+Glue -> Kafka -> Iceberg -> S3 Tables
+通过 Glue 消费 MSK/MSK Serverless 的数据，写S3 Tables（Iceberg）。多表，支持I U D
 
 1. 支持多表，通过MSK Connect 将数据库的数据CDC到MSK后，使用 [topics] 配置参数，可以接入多个topic的数据。
 2. 支持MSK Serverless IAM认证，需要提前在Glue Connection配置MSK的connect。MSK Connect 配置在私有子网中，私有子网配置NAT访问公网
 3. Job 参数说明
     (1). starting_offsets_of_kafka_topic: 'latest', 'earliest'
     (2). topics: 消费的Topic名称，如果消费多个topic，之间使用逗号分割（,）,例如 kafka1.db1.topica,kafka1.db2.topicb
-    (3). icebergdb: 数据写入的iceberg database名称
-    (4). warehouse: iceberg warehouse path
-    (5). datalake-formats: iceberg 指定使用哪一种datalake技术，包括iceberg hudi deltalake
-    (6). mskconnect: MSK Connect 名称，用以获取MSK Serverless的数据
-    (7). user-jars-first: True 目前Glue 集成 iceberg 必须设定的参数。
-4. Glue 需要使用 4.0引擎，4.0 支持 spark 3.3，只有在spark3.3版本中，才能支持iceberg的schame自适应。
+    (3). icebergdb: 数据写入的iceberg database(namespace)名称
+    (4). warehouse: S3 Tables bucket ARN，例如 arn:aws:s3tables:us-east-1:123456789012:bucket/my-table-bucket
+    (5). datalake-formats: iceberg 指定使用哪一种datalake技术
+    (6). glueconnect: Glue Connection 名称，用以获取MSK Serverless的数据
+    (7). user-jars-first: True
+    (8). cdcformat: cdc 的格式，目前支持的是 debezium, dms
+    (9). catalogname: Spark 中注册的 catalog 名称，默认 s3tablesCatalog
+4. Glue 需要使用 5.0 引擎，5.0 支持 S3 Tables 集成。
 5. MSK Serverless 认证只支持IAM，因此在Kafka连接的时候需要包含IAM认证相关的代码。
 '''
 
 '''
-读去表配置文件
+读取表配置文件
 '''
 
 
@@ -54,7 +56,6 @@ args = getResolvedOptions(sys.argv, ['JOB_NAME',
                                      'region',
                                      'glueconnect',
                                      'cdcformat',
-                                     'catalogtype',
                                      'catalogname'])
 
 '''
@@ -64,13 +65,11 @@ STARTING_OFFSETS_OF_KAFKA_TOPIC = args.get('starting_offsets_of_kafka_topic', 'l
 TOPICS = args.get('topics')
 DATABASE_NAME = args.get('icebergdb')
 WAREHOUSE = args.get('warehouse')
-# KAFKA_BOOSTRAPSERVER = args.get('kafkaserver')
 TABLECONFFILE = args.get('tableconffile')
 REGION = args.get('region')
 GLUE_CONNECT = args.get('glueconnect')
 CDCFORMAT = args.get('cdcformat')
-CATALOG_TYPE = args.get('catalogtype', 'glue')
-CATALOG_NAME = args.get('catalogname', 'glue_catalog')
+CATALOG_NAME = args.get('catalogname', 's3tablesCatalog')
 
 config = {
     "database_name": DATABASE_NAME,
@@ -79,22 +78,14 @@ config = {
 
 tables_ds = load_tables_config(REGION, TABLECONFFILE)
 
-spark_builder = SparkSession.builder \
+spark = SparkSession.builder \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config(f"spark.sql.catalog.{CATALOG_NAME}", "org.apache.iceberg.spark.SparkCatalog") \
-    .config(f"spark.sql.catalog.{CATALOG_NAME}.warehouse", config['warehouse']) \
+    .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "software.amazon.s3tables.iceberg.S3TablesCatalog") \
+    .config(f"spark.sql.catalog.{CATALOG_NAME}.warehouse", WAREHOUSE) \
     .config("spark.sql.ansi.enabled", "false") \
-    .config("spark.sql.iceberg.handle-timestamp-without-timezone", True)
-
-if CATALOG_TYPE == 's3table':
-    spark_builder = spark_builder \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "software.amazon.s3tables.iceberg.S3TablesCatalog")
-else:
-    spark_builder = spark_builder \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-
-spark = spark_builder.getOrCreate()
+    .config("spark.sql.iceberg.handle-timestamp-without-timezone", True) \
+    .getOrCreate()
 sc = spark.sparkContext
 glueContext = GlueContext(sc)
 
@@ -113,7 +104,6 @@ logger.info("DATABASE_NAME:" + DATABASE_NAME)
 logger.info("warehouse:" + WAREHOUSE)
 logger.info("glue-connect:" + GLUE_CONNECT)
 logger.info("table-config-file:" + TABLECONFFILE)
-logger.info("catalog-type:" + CATALOG_TYPE)
 logger.info("catalog-name:" + CATALOG_NAME)
 
 
@@ -132,10 +122,9 @@ elif WAREHOUSE == '':
     logger.info("Need Parameter [warehouse]")
     sys.exit(1)
 
-checkpoint_location = args["TempDir"] + "/" + args['JOB_NAME'] + "/checkpoint/" + "20230409-02" + "/"
+checkpoint_location = args["TempDir"] + "/" + args['JOB_NAME'] + "/checkpoint/" + "20250101" + "/"
 
 
-# 把 dataframe 转换成字符串，在logger中输出
 def getShowString(df, n=10, truncate=True, vertical=False):
     if isinstance(truncate, bool) and truncate:
         return df._jdf.showString(n, 10, vertical)

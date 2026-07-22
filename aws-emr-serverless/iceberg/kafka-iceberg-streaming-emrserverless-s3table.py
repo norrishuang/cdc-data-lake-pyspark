@@ -12,33 +12,28 @@ from transaction_log_process.transcation_log_dms import TransctionLogProcessDMSC
 from transaction_log_process.transaction_log_util import TransctionLogProcessDebeziumCDC
 
 '''
-Kafka（MSK Serverless） -EMR Serverless -> Iceberg -> S3
-通过消费 MSK/MSK Serverless 的数据，写S3（Iceberg）。多表，支持I U D
+Kafka（MSK Serverless） -EMR Serverless -> Iceberg -> S3 Tables
+通过消费 MSK/MSK Serverless 的数据，写S3 Tables（Iceberg）。多表，支持I U D
 
 1. 支持多表，通过MSK Connect 将数据库的数据CDC到MSK后，使用 [topics] 配置参数，可以接入多个topic的数据。
 2. 支持MSK Serverless IAM认证
 3. 提交参数说明
     (1). starting_offsets_of_kafka_topic: 'latest', 'earliest'
     (2). topics: 消费的Topic名称，如果消费多个topic，之间使用逗号分割（,）,例如 kafka1.db1.topica,kafka1.db2.topicb
-    (3). icebergdb: 数据写入的iceberg database名称
-    (4). warehouse: iceberg warehouse path
+    (3). icebergdb: 数据写入的iceberg database(namespace)名称
+    (4). warehouse: S3 Tables bucket ARN，例如 arn:aws:s3tables:us-east-1:123456789012:bucket/my-table-bucket
     (5). tablejsonfile: 记录对表需要做特殊处理的配置，例如设置表的primary key，时间字段，iceberg的针对性属性配置
-    (6). mskconnect: MSK Connect 名称，用以获取MSK Serverless的数据
-    (7). checkpointpath: 记录Spark streaming的Checkpoint的地址
-    (8). region: 例如 us-east-1
-    (9). kafkaserver: MSK 的 boostrap server
-    (10). cdcformat: cdc 的格式，目前支持的是 debezium, dms
-4. 只有在spark3.3版本中，才能支持iceberg的schame自适应。
+    (6). checkpointpath: 记录Spark streaming的Checkpoint的地址
+    (7). region: 例如 us-east-1
+    (8). kafkaserver: MSK 的 boostrap server
+    (9). cdcformat: cdc 的格式，目前支持的是 debezium, dms
+    (10). catalogname: Spark 中注册的 catalog 名称，默认 s3tablesCatalog
+4. EMR 7.x 支持 S3 Tables 的 Iceberg 集成。
 5. MSK Serverless 认证只支持IAM，因此在Kafka连接的时候需要包含IAM认证相关的代码。
-
-Update 
-2024-03-04 为了应对Kafka源端出现的数据重复情况，将从Binlog日志中的 ts_ms 字段作为 precombine 字段使用。
-
 '''
 
 
-
-JOB_NAME = "cdc-kafka-iceberg"
+JOB_NAME = "cdc-kafka-iceberg-s3tables"
 SOURCE_TYPE = "kafka"
 KAFKA_BOOSTRAPSERVER = ""
 DATABASE_NAME = ""
@@ -49,8 +44,7 @@ TOPICS = ""
 TABLECONFFILE = ""
 STARTING_OFFSETS_OF_KAFKA_TOPIC = ""
 CDCFORMAT = "debezium"
-CATALOG_TYPE = "glue"
-CATALOG_NAME = "glue_catalog"
+CATALOG_NAME = "s3tablesCatalog"
 
 ## Init
 if len(sys.argv) > 1:
@@ -67,7 +61,6 @@ if len(sys.argv) > 1:
                                 "checkpointpath=",
                                 "sourcetype=",
                                 "cdcformat=",
-                                "catalogtype=",
                                 "catalogname="])
 
 
@@ -104,9 +97,6 @@ if len(sys.argv) > 1:
             SOURCE_TYPE = opt_value
         elif opt_name in ('--cdcformat'):
             CDCFORMAT = opt_value
-        elif opt_name in ('--catalogtype'):
-            CATALOG_TYPE = opt_value
-            print("CATALOG_TYPE:" + CATALOG_TYPE)
         elif opt_name in ('--catalogname'):
             CATALOG_NAME = opt_value
             print("CATALOG_NAME:" + CATALOG_NAME)
@@ -128,25 +118,17 @@ config = {
     "database_name": DATABASE_NAME,
 }
 
-checkpointpath = CHECKPOINT_LOCATION + "/" + JOB_NAME + "/checkpoint/" + "20230526" + "/"
+checkpointpath = CHECKPOINT_LOCATION + "/" + JOB_NAME + "/checkpoint/" + "20250101" + "/"
 
-spark_builder = SparkSession.builder \
+spark = SparkSession.builder \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config(f"spark.sql.catalog.{CATALOG_NAME}", "org.apache.iceberg.spark.SparkCatalog") \
+    .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "software.amazon.s3tables.iceberg.S3TablesCatalog") \
     .config(f"spark.sql.catalog.{CATALOG_NAME}.warehouse", WAREHOUSE) \
     .config("spark.sql.ansi.enabled", "false") \
     .config("spark.sql.iceberg.handle-timestamp-without-timezone", True) \
-    .config("spark.sql.session.timeZone", "UTC+8")
-
-if CATALOG_TYPE == 's3table':
-    spark_builder = spark_builder \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "software.amazon.s3tables.iceberg.S3TablesCatalog")
-else:
-    spark_builder = spark_builder \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog") \
-        .config(f"spark.sql.catalog.{CATALOG_NAME}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-
-spark = spark_builder.getOrCreate()
+    .config("spark.sql.session.timeZone", "UTC+8") \
+    .getOrCreate()
 
 sc = spark.sparkContext
 log4j = sc._jvm.org.apache.log4j
@@ -166,19 +148,7 @@ def getShowString(df, n=10, truncate=True, vertical=False):
     else:
         return df._jdf.showString(n, int(truncate), vertical)
 
-# def load_tables_config(aws_region, config_s3_path):
-#     o = urlparse(config_s3_path, allow_fragments=False)
-#     client = boto3.client('s3', region_name=aws_region)
-#     data = client.get_object(Bucket=o.netloc, Key=o.path.lstrip('/'))
-#     file_content = data['Body'].read().decode("utf-8")
-#     json_content = json.loads(file_content)
-#     return json_content
-#
-#
-# tables_ds = load_tables_config(REGION, TABLECONFFILE)
-#
 
-#从kafka获取数据
 reader = spark \
     .readStream \
     .format("kafka") \
@@ -207,13 +177,13 @@ if CDCFORMAT == 'dms':
                                          catalog_name=CATALOG_NAME)
 else:
     process = TransctionLogProcessDebeziumCDC(spark=spark,
-                                              region=REGION,
-                                              tableconffile=TABLECONFFILE,
-                                              logger=logger,
-                                              jobname=JOB_NAME,
-                                              databasename=DATABASE_NAME,
-                                              isglue=False,
-                                              catalog_name=CATALOG_NAME)
+                                             region=REGION,
+                                             tableconffile=TABLECONFFILE,
+                                             logger=logger,
+                                             jobname=JOB_NAME,
+                                             databasename=DATABASE_NAME,
+                                             isglue=False,
+                                             catalog_name=CATALOG_NAME)
 
 source_data \
     .writeStream \

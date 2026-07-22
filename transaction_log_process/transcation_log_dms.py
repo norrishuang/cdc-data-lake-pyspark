@@ -29,6 +29,7 @@ class TransctionLogProcessDMSCDC:
                  databasename,
                  warehouse,
                  isglue=False,
+                 catalog_name='glue_catalog',
                  WriteIcebergTableClass=None):
 
         self.region = region
@@ -38,6 +39,7 @@ class TransctionLogProcessDMSCDC:
         self.jobname = jobname
         self.isglue = isglue
         self.warehouse = warehouse
+        self.catalog_name = catalog_name
         self.tables_ds = self._load_tables_config(region, tableconffile)
 
         self.config = {
@@ -50,7 +52,8 @@ class TransctionLogProcessDMSCDC:
                                         logger=self.logger,
                                         jobname=self.jobname,
                                         databasename=databasename,
-                                        isglue=self.isglue)
+                                        isglue=self.isglue,
+                                        catalog_name=self.catalog_name)
 
     def _writeJobLogger(self, logs):
         WriteIcebergTableClass.WriteJobLogger(self, logs)
@@ -207,10 +210,10 @@ class TransctionLogProcessDMSCDC:
 
                     refreshtable = True
                     if refreshtable:
-                        self.spark.sql(f"REFRESH TABLE glue_catalog.{database_name}.{tableName}")
+                        self.spark.sql(f"REFRESH TABLE {self.catalog_name}.{database_name}.{tableName}")
                         self._writeJobLogger("Refresh table - True")
 
-                    schemadata = self.spark.table(f"glue_catalog.{database_name}.{tableName}").schema
+                    schemadata = self.spark.table(f"{self.catalog_name}.{database_name}.{tableName}").schema
                     print(schemadata)
                     dataDFOutput = dataDF.select(
                         from_json(col("data").cast("string"), schemadata).alias("DFADD")).select(col("DFADD.*"),
