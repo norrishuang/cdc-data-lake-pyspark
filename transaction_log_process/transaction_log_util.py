@@ -328,12 +328,18 @@ class TransctionLogProcessDebeziumCDC:
             #         WHEN NOT MATCHED THEN INSERT * """
 
         self.logger.info("####### Execute SQL:" + query)
+        # Spark 3.5+ (Glue 5.0) 下 accept-any-schema 会导致 MERGE 的列解析被跳过，
+        # 报 UNRESOLVED_COLUMN。MERGE 前临时移除该属性，结束后恢复（insert 的
+        # schema 自动演进依赖它）。见 https://github.com/apache/iceberg/issues/9827
+        self.spark.sql(f"ALTER TABLE {self.catalog_name}.{database_name}.{tableName} UNSET TBLPROPERTIES ('write.spark.accept-any-schema')")
         try:
             self.spark.sql(query)
         except Exception as err:
             self.logger.error("Error of MERGE INTO")
             self.logger.error(err)
             pass
+        finally:
+            self.spark.sql(f"ALTER TABLE {self.catalog_name}.{database_name}.{tableName} SET TBLPROPERTIES ('write.spark.accept-any-schema'='true')")
         self.spark.catalog.dropGlobalTempView(TempTable)
         if MergeTempTable != '':
             self.spark.catalog.dropGlobalTempView(MergeTempTable)
