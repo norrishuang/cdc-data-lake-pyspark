@@ -138,73 +138,29 @@ class WriteIcebergTableClass:
         TempTable = "tmp_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
         dataFrame.createOrReplaceGlobalTempView(TempTable)
 
-        MergeTempTable = ''
         ##dataFrame.sparkSession.sql(f"REFRESH TABLE {TempTable}")
         # 修改为全局试图OK，为什么？[待解决]
-        if precombine_key == '':
-            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING (SELECT * FROM global_temp.{TempTable}) u
-                ON t.{primary_key} = u.{primary_key}
-                    WHEN MATCHED THEN UPDATE
-                        SET *
-                    WHEN NOT MATCHED THEN INSERT * """
-        else:
+        # 无论是否配置 precombine_key 都必须按主键去重：同一批数据中对同一条记录
+        # 的多次变更会让 MERGE 源出现重复主键，触发 MERGE_CARDINALITY_VIOLATION。
+        # 每条 CDC 记录都带有 ts_ms，按 ts_ms 取最新一条。
+        dedupQuery = f"""
+            SELECT * FROM (
+                SELECT *, row_number() over(PARTITION BY {primary_key} ORDER BY ts_ms DESC) AS _rank
+                FROM global_temp.{TempTable}) WHERE _rank = 1
+        """
+        self.logger.info("####### Execute SQL({}):{}".format(TempTable, dedupQuery))
+        mergeDF = self.spark.sql(dedupQuery).drop("_rank", "ts_ms")
 
-            queryTemp = f"""
-                SELECT a.* FROM global_temp.{TempTable} a join 
-                (SELECT {primary_key},ts_ms,
-                    row_number() over(PARTITION BY {primary_key} ORDER BY ts_ms DESC) AS rank 
-                    FROM global_temp.{TempTable}) b 
-                        ON a.{primary_key} = b.{primary_key} 
-                        and a.ts_ms = b.ts_ms
-                        WHERE b.rank = 1
-            """
-            self.logger.info("####### Execute SQL({}):{}".format(TempTable, queryTemp))
-            tmpDF = spark.sql(queryTemp)
+        MergeTempTable = "tmp_merge_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
+        self._writeJobLogger(f"############ MERGE TEMP TABLE {MergeTempTable} ############### \r\n" + getShowString(mergeDF, truncate=False))
+        mergeDF.createOrReplaceGlobalTempView(MergeTempTable)
 
-            ### DUBEG 查看更新的数据是否存在重复数据
-            DebugTable = "debug_merge_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
-            tmpDF.createOrReplaceGlobalTempView(DebugTable)
-            debugQuery = f"""
-                SELECT {primary_key},ts_ms FROM global_temp.{DebugTable} a GROUP BY {primary_key},ts_ms HAVING count(*) > 1
-            """
-            debugDF = spark.sql(debugQuery)
-            self._writeJobLogger(f"############ DEBUG MERGE TEMP {DebugTable} ############### \r\n" + getShowString(debugDF, truncate=False))
-            spark.catalog.dropGlobalTempView(DebugTable)
-
-            # 移除字段 ts_ms
-            mergeDF = tmpDF.drop("ts_ms")
-            MergeTempTable = "tmp_merge_" + tableName + "_u_" + str(batchId) + "_" + str(ts)
-
-            self._writeJobLogger(f"############ MERGE TEMP TABLE {MergeTempTable} ############### \r\n" + getShowString(mergeDF, truncate=False))
-
-            mergeDF.createOrReplaceGlobalTempView(MergeTempTable)
-            query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING
-                (SELECT * FROM global_temp.{MergeTempTable}) u
-                  ON t.{primary_key} = u.{primary_key}
-                     WHEN MATCHED THEN UPDATE
-                         SET *
-                     WHEN NOT MATCHED THEN INSERT * """
-
-            # query_test = f"""SELECT * FROM global_temp.{TempTable} a join (
-            #                 SELECT {primary_key},{precombine_key} FROM global_temp.{TempTable}
-            #                 GROUP BY {primary_key},{precombine_key} having count(*) > 1
-            #                 ) b on
-            #                     a.{primary_key} = b.{primary_key} and
-            #                     a.{precombine_key} = b.{precombine_key}"""
-            #
-            # self.logger.info("####### Execute SQL:" + query_test)
-            # dfTest = self.spark.sql(query_test)
-            # self._writeJobLogger("############  MERGE INTO  ############### \r\n" + getShowString(dfTest, truncate=False))
-            #
-            # query = f"""MERGE INTO glue_catalog.{database_name}.{tableName} t USING
-            # (SELECT distinct a.* FROM global_temp.{TempTable} a join (SELECT {primary_key},{precombine_key},
-            #     row_number() over(PARTITION BY {primary_key},{precombine_key} ORDER BY {precombine_key} DESC) AS rank
-            #         from global_temp.{TempTable}) b on
-            #     a.{primary_key} = b.{primary_key} and a.{precombine_key} = b.{precombine_key} and rank = 1) u
-            #     ON t.{primary_key} = u.{primary_key}
-            #         WHEN MATCHED THEN UPDATE
-            #             SET *
-            #         WHEN NOT MATCHED THEN INSERT * """
+        query = f"""MERGE INTO {self.catalog_name}.{database_name}.{tableName} t USING
+            (SELECT * FROM global_temp.{MergeTempTable}) u
+              ON t.{primary_key} = u.{primary_key}
+                 WHEN MATCHED THEN UPDATE
+                     SET *
+                 WHEN NOT MATCHED THEN INSERT * """
 
         self.logger.info("####### Execute SQL:" + query)
         # Spark 3.5+ (Glue 5.0) 下 accept-any-schema 会导致 MERGE 的列解析被跳过，
