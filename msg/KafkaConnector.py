@@ -41,6 +41,9 @@ class KafkaConnector:
             "failOnDataLoss": "false",
             "maxOffsetsPerTrigger": 200000,
             "max.partition.fetch.bytes": 10485760,
+            # 每个batch上报消费延迟指标到CloudWatch: glue.driver.streaming.maxConsumerLagInMs
+            # 需要 Glue 4.0+，且 Job 开启 --enable-metrics
+            "emitConsumerLagMetrics": "true",
             "startingOffsets": self.starting_offset
             # "kafka.security.protocol": "SASL_SSL",
             # "kafka.sasl.mechanism": "AWS_MSK_IAM",

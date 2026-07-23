@@ -63,6 +63,7 @@ DEFAULT_ARGS=$(cat <<EOF
     "--additional-python-modules": "${ADDITIONAL_PYTHON_MODULES}",
     "--TempDir": "${GLUE_TEMP_DIR}",
     "--conf": "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+    "--enable-metrics": "true",
     "--datalake-formats": "iceberg",
     "--icebergdb": "${DATABASE_NAME}",
     "--glueconnect": "${GLUE_CONNECT}",

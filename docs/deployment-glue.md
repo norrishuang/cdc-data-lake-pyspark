@@ -134,6 +134,12 @@ aws glue get-job-runs --job-name <glue-job-name> --region <region> --max-results
 
 日志位于 CloudWatch Logs 的 `/aws-glue/jobs/` 日志组，自定义日志可搜索 `[CUSTOM-LOG]`。
 
+**监控 Kafka 消费延迟**：Job 已开启 `emitConsumerLagMetrics`（Kafka source 选项）和 `--enable-metrics`（Job 参数，Glue 4.0+），每个 batch 会向 CloudWatch 上报消费延迟指标：
+
+- 位置：CloudWatch → Metrics → `Glue` 命名空间，按 JobName 维度筛选
+- 指标名：`glue.driver.streaming.maxConsumerLagInMs`，表示 topic 中最老记录与到达 Glue 时间的差值（毫秒）
+- 该值持续下降说明在追赶积压；持续上涨说明消费速度跟不上写入速度，需要调大 `maxOffsetsPerTrigger` 或增加 Worker 数量
+
 ### 5.2 验证数据（S3 Tables）
 
 ```bash
