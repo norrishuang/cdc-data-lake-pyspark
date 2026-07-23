@@ -271,11 +271,11 @@ class TransctionLogProcessDebeziumCDC:
         else:
 
             queryTemp = f"""
-                SELECT a.* FROM global_temp.{TempTable} t join 
+                SELECT t.* FROM global_temp.{TempTable} t join
                 (SELECT {primary_key},ts_ms,
-                    row_number() over(PARTITION BY {primary_key} ORDER BY ts_ms DESC) AS rank 
-                    FROM global_temp.{TempTable}) u 
-                        ON {primary_key_str} 
+                    row_number() over(PARTITION BY {primary_key} ORDER BY ts_ms DESC) AS rank
+                    FROM global_temp.{TempTable}) u
+                        ON {primary_key_str}
                         and t.ts_ms = u.ts_ms
                         WHERE u.rank = 1
             """
